@@ -111,7 +111,7 @@
    copy of each to maintain and their saved data is the same whether opened here or on their own. */
 const SITE='https://elkady591.github.io/';
 const TOOLS=[
-  {id:'pour-tracker', name:'Concrete Dispatching', img:'pour-tracker/icons/icon-192.png',  desc:'Real-time concrete pour monitoring',    src:'pour-tracker/index.html'},
+  {id:'dispatching',  name:'Concrete Dispatching', img:SITE+'Concrete-Dispatching/icons/icon-192.png', desc:'Real-time concrete pour monitoring', src:SITE+'Concrete-Dispatching/'},
   {id:'ice',          name:'Ice Calculation', img:SITE+'Ice-Calculator/icon-192.png', desc:'Ice blocks to order for a pour',         src:SITE+'Ice-Calculator/'},
   {id:'mixes',        name:'NCM Mixes',       img:SITE+'NCM-Mixes/icon-192.png',      desc:'Mix designs catalog and materials',     src:SITE+'NCM-Mixes/'},
   // Desktop programs (.exe on the office PC), not web pages: `launch` is a URL protocol registered on that PC
@@ -161,7 +161,8 @@ document.addEventListener('click',e=>{
   const a=e.target.closest('a.nav,a.app'); if(!a||!ON_WINDOWS) return;
   const t=TOOLS.find(x=>x.id===a.dataset.id&&x.launch); if(t) location.href=t.launch;
 });
-const route=()=>show(location.hash.slice(1)||'home');
+const OLD_IDS={'pour-tracker':'dispatching'};   // links saved before the rename still land on the right tool
+const route=()=>{ const h=location.hash.slice(1)||'home'; show(OLD_IDS[h]||h); };
 window.addEventListener('hashchange',route);
 route();
 </script>
