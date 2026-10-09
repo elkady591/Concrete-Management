@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Pour Tracker</title>
 <!-- Bumped on every build; the app compares it against the live copy and self-updates (see checkForUpdate) -->
-<meta name="app-build" content="20261009-000003">
+<meta name="app-build" content="20261009-000004">
 <!-- PWA / mobile: add to home screen as an app -->
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
@@ -1682,7 +1682,7 @@ async function pingPresence(){
    Everyone types a name once (kept on the device); it rides along with every edit so the
    admin log can answer "who changed this". Admin mode is a single password — its plaintext
    is never in the code, only the SHA-256 hash, same trick as the access gate. */
-const ADMIN_HASH='28995a2c0d04b66d5c7c818536bb00cd1fc1ac422aea47627de0999782fee3f4';
+const ADMIN_HASH='8a79974f0c0a4aa00aa50b45c161b77ba4dd92c51c5ec8330811ebd509020caf';
 const KEY_ADMIN='cmpour:admin';
 let IS_ADMIN=false;
 
