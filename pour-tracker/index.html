@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Pour Tracker</title>
 <!-- Bumped on every build; the app compares it against the live copy and self-updates (see checkForUpdate) -->
-<meta name="app-build" content="20261009-000002">
+<meta name="app-build" content="20261009-000003">
 <!-- PWA / mobile: add to home screen as an app -->
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
@@ -568,12 +568,12 @@ async function stSet(k,v){
   try{ if(window.localStorage){localStorage.setItem(k,JSON.stringify(v));} }catch(e){}
 }
 
-const KEY_REQ='pourdash:req';
-const KEY_RATE='pourdash:rate';
-const KEY_DONE='pourdash:done';
-const KEY_DONE_ORDER='pourdash:doneorder';   // order pours were closed on THIS device, for Undo
-const KEY_CFG='pourdash:cfg';
-const KEY_PLAN='pourdash:plan';   // last-good plan cached so it never blanks out
+const KEY_REQ='cmpour:req';
+const KEY_RATE='cmpour:rate';
+const KEY_DONE='cmpour:done';
+const KEY_DONE_ORDER='cmpour:doneorder';   // order pours were closed on THIS device, for Undo
+const KEY_CFG='cmpour:cfg';
+const KEY_PLAN='cmpour:plan';   // last-good plan cached so it never blanks out
 let REQ={}; let RATE={}; let DONE={}; let DONE_ORDER=[]; let CFG={}; let REJECTED={}; let REJECTED_TODAY=0; let activeTab='ALL'; let view='summary'; let spotKey=null;
 let statusFilter=null;   // for clickable KPI tiles -> filter All Pours table
 let spotTab='overview';  // Active-now spotlight sub-tab: 'overview' | 'hourly'
@@ -1617,8 +1617,8 @@ async function syncPush(type,key,value){
    heartbeats every 30s. The Apps Script keeps the roster in its cache — nothing is written to
    the sheet. Silently stays hidden when there's no Sync URL, or when the script hasn't been
    redeployed with the 'ping' action yet. */
-const KEY_DEV='pourdash:dev';
-const KEY_ME='pourdash:me';           // this device's display name
+const KEY_DEV='cmpour:dev';
+const KEY_ME='cmpour:me';           // this device's display name
 let ME='';                            // shown in "who's viewing" and stamped on every edit
 let WHO=[];                           // roster from the last ping: [{name,seen,ip}]
 let MY_IP='';                         // this client's public IP (Apps Script can't see it, so we look it up)
@@ -1683,7 +1683,7 @@ async function pingPresence(){
    admin log can answer "who changed this". Admin mode is a single password — its plaintext
    is never in the code, only the SHA-256 hash, same trick as the access gate. */
 const ADMIN_HASH='28995a2c0d04b66d5c7c818536bb00cd1fc1ac422aea47627de0999782fee3f4';
-const KEY_ADMIN='pourdash:admin';
+const KEY_ADMIN='cmpour:admin';
 let IS_ADMIN=false;
 
 function loadMe(){ try{ ME=localStorage.getItem(KEY_ME)||''; }catch(e){ ME=''; } return ME; }
@@ -2008,7 +2008,7 @@ function setRange(r){
    Deterrent password on a public page: the plaintext is NEVER in the code — only its SHA-256 hash.
    Set AUTH_HASH='' to turn the gate off. Once entered on a device it's remembered (localStorage). */
 const AUTH_HASH='';   // gate OFF — set to a sha256 hex to require a password
-const KEY_AUTH='pourdash:auth';
+const KEY_AUTH='cmpour:auth';
 async function sha256hex(s){
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
   return [...new Uint8Array(buf)].map(x=>x.toString(16).padStart(2,'0')).join('');
