@@ -34,7 +34,7 @@
     transition:background .15s ease,color .15s ease}
   .nav span{white-space:nowrap}
   .nav .ic{font-size:18px;line-height:1;width:26px;text-align:center;flex:none}
-  .nav img.ic{height:26px;border-radius:6px;display:block}
+  .nav img.ic{height:26px;border-radius:6px;display:block;background:#fff}
   .nav:hover{background:rgba(255,255,255,.05);color:var(--ink)}
   .nav.active{background:rgba(124,131,255,.16);border-color:rgba(124,131,255,.4);color:var(--ink)}
   .nav.soon{opacity:.45;cursor:default}
@@ -47,6 +47,13 @@
   .pane{position:absolute;inset:0;display:none}
   .pane.show{display:block}
   .pane iframe{width:100%;height:100%;border:0;display:block;background:var(--bg)}
+  .desk{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+  .desk img.ic{width:96px;height:96px;border-radius:22px;background:#fff}
+  .desk h2{margin:18px 0 6px;font-size:22px;font-weight:800}
+  .desk p{margin:0;color:var(--muted);font-size:13.5px}
+  .desk .run{margin:22px 0 14px;padding:12px 26px;border-radius:14px;background:var(--accent);color:#fff;
+    font-weight:800;font-size:15px;text-decoration:none}
+  .desk .note{font-size:12px;color:var(--faint);max-width:340px;line-height:1.6}
   #home{overflow:auto}
   #home::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
     background:
@@ -61,7 +68,7 @@
   a.app{cursor:pointer}
   a.app:hover{transform:translateY(-3px);border-color:rgba(124,131,255,.55)}
   .app .ic{font-size:30px;line-height:1;display:block}
-  .app img.ic{width:56px;height:56px;border-radius:13px}
+  .app img.ic{width:56px;height:56px;border-radius:13px;background:#fff}
   .app .nm{font-weight:800;font-size:16px;margin-top:12px}
   .app .ds{color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.5}
   .app.soon{opacity:.5}
@@ -104,10 +111,15 @@
    copy of each to maintain and their saved data is the same whether opened here or on their own. */
 const SITE='https://elkady591.github.io/';
 const TOOLS=[
-  {id:'pour-tracker', name:'Pour Tracker',    img:'pour-tracker/icons/icon-192.png',  desc:'Real-time concrete pour monitoring',    src:'pour-tracker/index.html'},
+  {id:'pour-tracker', name:'Concrete Dispatching', img:'pour-tracker/icons/icon-192.png',  desc:'Real-time concrete pour monitoring',    src:'pour-tracker/index.html'},
   {id:'ice',          name:'Ice Calculation', img:SITE+'Ice-Calculator/icon-192.png', desc:'Ice blocks to order for a pour',         src:SITE+'Ice-Calculator/'},
-  {id:'mixes',        name:'NCM Mixes',       img:SITE+'NCM-Mixes/icon-192.png',      desc:'Mix designs catalog and materials',     src:SITE+'NCM-Mixes/'}
+  {id:'mixes',        name:'NCM Mixes',       img:SITE+'NCM-Mixes/icon-192.png',      desc:'Mix designs catalog and materials',     src:SITE+'NCM-Mixes/'},
+  // Desktop programs (.exe on the office PC), not web pages: `launch` is a URL protocol registered on that PC
+  // by register-desktop-tools.reg — the page can only ask Windows to start them.
+  {id:'pumps',        name:'Pumps Movements',   img:'icons/pumps.png',    desc:'Pump movements sheet from the WhatsApp export', launch:'ncm-pumps://open'},
+  {id:'rejected',     name:'Rejected Concrete', img:'icons/rejected.png', desc:'Rejected concrete sheet from the WhatsApp export', launch:'ncm-rejected://open'}
 ];
+const ON_WINDOWS=/Windows NT/.test(navigator.userAgent);
 const pic=(t,cls)=>t.img?`<img class="${cls}" src="${t.img}" alt="">`:`<span class="${cls}">${t.icon||''}</span>`;
 const side=document.getElementById('side'), main=document.getElementById('main'), apps=document.getElementById('apps');
 
@@ -120,26 +132,35 @@ function navItem(t,soon){
 }
 navItem({id:'home',name:'Home',icon:'🏠'},false);
 for(const t of TOOLS){
-  navItem(t,!t.src);
-  apps.insertAdjacentHTML('beforeend', t.src
-    ? `<a class="app" href="#${t.id}">${pic(t,'ic')}<div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tag">Open ↗</span></a>`
+  navItem(t,!(t.src||t.launch));
+  apps.insertAdjacentHTML('beforeend', (t.src||t.launch)
+    ? `<a class="app" href="#${t.id}" data-id="${t.id}">${pic(t,'ic')}<div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tag">${t.launch?'Desktop program ▶':'Open ↗'}</span></a>`
     : `<div class="app soon">${pic(t,'ic')}<div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tag">Coming soon</span></div>`);
 }
 
 /* Each tool's frame is created the first time it is opened and then kept alive,
    so switching back and forth never reloads it or loses where you were. */
 function show(id){
-  const t=TOOLS.find(x=>x.id===id&&x.src);
+  const t=TOOLS.find(x=>x.id===id&&(x.src||x.launch));
   if(!t) id='home';
   if(t && !document.getElementById('pane-'+id)){
     const p=document.createElement('div'); p.className='pane'; p.id='pane-'+id;
-    p.innerHTML=`<iframe src="${t.src}" title="${t.name}"></iframe>`;
+    p.innerHTML = t.src ? `<iframe src="${t.src}" title="${t.name}"></iframe>`
+      : `<div class="desk">${pic(t,'ic')}<h2>${t.name}</h2><p>${t.desc}</p>
+           ${ON_WINDOWS ? `<a class="run" href="${t.launch}">▶ Run program</a>
+             <p class="note">Runs on the office PC. If nothing opens, the program is not set up on this computer.</p>`
+           : `<p class="note">This is a desktop program — it runs on the office PC only.</p>`}</div>`;
     main.appendChild(p);
   }
   document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('show', p.id===(t?'pane-'+id:'home')));
   document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active', n.dataset.id===id));
   document.title = t ? (t.name+' · Concrete Management') : 'Concrete Management';
 }
+// Clicking a desktop program in the menu or on its card starts it straight away (a reload never does).
+document.addEventListener('click',e=>{
+  const a=e.target.closest('a.nav,a.app'); if(!a||!ON_WINDOWS) return;
+  const t=TOOLS.find(x=>x.id===a.dataset.id&&x.launch); if(t) location.href=t.launch;
+});
 const route=()=>show(location.hash.slice(1)||'home');
 window.addEventListener('hashchange',route);
 route();
