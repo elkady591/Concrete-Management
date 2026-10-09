@@ -33,7 +33,8 @@
     color:var(--muted);text-decoration:none;font-weight:600;font-size:13.5px;cursor:pointer;
     transition:background .15s ease,color .15s ease}
   .nav span{white-space:nowrap}
-  .nav .ic{font-size:18px;line-height:1;width:22px;text-align:center}
+  .nav .ic{font-size:18px;line-height:1;width:26px;text-align:center;flex:none}
+  .nav img.ic{height:26px;border-radius:6px;display:block}
   .nav:hover{background:rgba(255,255,255,.05);color:var(--ink)}
   .nav.active{background:rgba(124,131,255,.16);border-color:rgba(124,131,255,.4);color:var(--ink)}
   .nav.soon{opacity:.45;cursor:default}
@@ -59,7 +60,8 @@
     background:linear-gradient(180deg,var(--panel),var(--panel2));transition:transform .15s ease,border-color .15s ease}
   a.app{cursor:pointer}
   a.app:hover{transform:translateY(-3px);border-color:rgba(124,131,255,.55)}
-  .app .ic{font-size:30px;line-height:1}
+  .app .ic{font-size:30px;line-height:1;display:block}
+  .app img.ic{width:56px;height:56px;border-radius:13px}
   .app .nm{font-weight:800;font-size:16px;margin-top:12px}
   .app .ds{color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.5}
   .app.soon{opacity:.5}
@@ -97,27 +99,31 @@
 
 <script>
 "use strict";
-/* One entry per tool. `src` = the tool's own page (loaded inside the shell); no `src` = not added yet. */
+/* One entry per tool. `src` = the tool's own page (loaded inside the shell); no `src` = not added yet.
+   Ice and Mixes are NOT copied here: they load from their own repos on the same site, so there is one
+   copy of each to maintain and their saved data is the same whether opened here or on their own. */
+const SITE='https://elkady591.github.io/';
 const TOOLS=[
-  {id:'pour-tracker', name:'Pour Tracker',    icon:'🏗️', desc:'Real-time concrete pour monitoring',    src:'pour-tracker/index.html'},
-  {id:'ice',          name:'Ice Calculation', icon:'🧊', desc:'Ice quantity for concrete temperature'},
-  {id:'mixes',        name:'NCM Mixes',       icon:'🧪', desc:'Mix designs catalog'}
+  {id:'pour-tracker', name:'Pour Tracker',    img:'pour-tracker/icons/icon-192.png',  desc:'Real-time concrete pour monitoring',    src:'pour-tracker/index.html'},
+  {id:'ice',          name:'Ice Calculation', img:SITE+'Ice-Calculator/icon-192.png', desc:'Ice blocks to order for a pour',         src:SITE+'Ice-Calculator/'},
+  {id:'mixes',        name:'NCM Mixes',       img:SITE+'NCM-Mixes/icon-192.png',      desc:'Mix designs catalog and materials',     src:SITE+'NCM-Mixes/'}
 ];
+const pic=(t,cls)=>t.img?`<img class="${cls}" src="${t.img}" alt="">`:`<span class="${cls}">${t.icon||''}</span>`;
 const side=document.getElementById('side'), main=document.getElementById('main'), apps=document.getElementById('apps');
 
-function navItem(id,icon,name,soon){
+function navItem(t,soon){
   const a=document.createElement(soon?'div':'a');
-  a.className='nav'+(soon?' soon':''); a.dataset.id=id;
-  if(!soon) a.href='#'+id;
-  a.innerHTML=`<span class="ic">${icon}</span><span>${name}</span>${soon?'<span class="soon-tag">soon</span>':''}`;
+  a.className='nav'+(soon?' soon':''); a.dataset.id=t.id;
+  if(!soon) a.href='#'+t.id;
+  a.innerHTML=`${pic(t,'ic')}<span>${t.name}</span>${soon?'<span class="soon-tag">soon</span>':''}`;
   side.appendChild(a);
 }
-navItem('home','🏠','Home',false);
+navItem({id:'home',name:'Home',icon:'🏠'},false);
 for(const t of TOOLS){
-  navItem(t.id,t.icon,t.name,!t.src);
+  navItem(t,!t.src);
   apps.insertAdjacentHTML('beforeend', t.src
-    ? `<a class="app" href="#${t.id}"><div class="ic">${t.icon}</div><div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tag">Open ↗</span></a>`
-    : `<div class="app soon"><div class="ic">${t.icon}</div><div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tag">Coming soon</span></div>`);
+    ? `<a class="app" href="#${t.id}">${pic(t,'ic')}<div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tag">Open ↗</span></a>`
+    : `<div class="app soon">${pic(t,'ic')}<div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tag">Coming soon</span></div>`);
 }
 
 /* Each tool's frame is created the first time it is opened and then kept alive,
