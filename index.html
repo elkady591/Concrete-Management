@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Concrete Management</title>
+<meta name="theme-color" content="#0d1120">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Concrete Mgmt">
+<style>
+  :root{
+    --bg:#0d1120; --panel:#161c2e; --panel2:#1b2338; --side:#111627;
+    --ink:#eef1fb; --muted:#98a2c0; --faint:#6a7391;
+    --line:rgba(255,255,255,.09); --accent:#7c83ff; --cyan:#22d3ee;
+    --sans:'Inter','Segoe UI',system-ui,sans-serif;
+    --sideW:228px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{color:var(--ink);font-family:var(--sans);font-size:15px;background:var(--bg);
+    -webkit-font-smoothing:antialiased;display:flex;overflow:hidden}
+
+  /* ---- side navigation: always visible, so you move between tools without leaving ---- */
+  .side{width:var(--sideW);flex:none;display:flex;flex-direction:column;gap:4px;padding:16px 10px;
+    background:var(--side);border-right:1px solid var(--line)}
+  .brand{padding:4px 10px 14px;font-weight:800;font-size:13.5px;letter-spacing:.2px;line-height:1.3}
+  .brand small{display:block;color:var(--faint);font-weight:500;font-size:11px;margin-top:2px}
+  .nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid transparent;
+    color:var(--muted);text-decoration:none;font-weight:600;font-size:13.5px;cursor:pointer;
+    transition:background .15s ease,color .15s ease}
+  .nav span{white-space:nowrap}
+  .nav .ic{font-size:18px;line-height:1;width:22px;text-align:center}
+  .nav:hover{background:rgba(255,255,255,.05);color:var(--ink)}
+  .nav.active{background:rgba(124,131,255,.16);border-color:rgba(124,131,255,.4);color:var(--ink)}
+  .nav.soon{opacity:.45;cursor:default}
+  .nav.soon:hover{background:none;color:var(--muted)}
+  .nav .soon-tag{margin-left:auto;font-size:9.5px;font-weight:700;color:var(--faint);
+    border:1px solid var(--line);border-radius:999px;padding:1px 6px}
+
+  /* ---- content ---- */
+  .main{flex:1;min-width:0;position:relative}
+  .pane{position:absolute;inset:0;display:none}
+  .pane.show{display:block}
+  .pane iframe{width:100%;height:100%;border:0;display:block;background:var(--bg)}
+  #home{overflow:auto}
+  #home::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+    background:
+      radial-gradient(50% 45% at 12% 6%,rgba(124,131,255,.22),transparent 60%),
+      radial-gradient(46% 42% at 90% 4%,rgba(34,211,238,.16),transparent 60%)}
+  .wrap{max-width:980px;margin:0 auto;padding:36px 20px 60px}
+  h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.3px}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  .apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-top:26px}
+  .app{display:block;padding:20px 18px;border-radius:18px;border:1px solid var(--line);text-decoration:none;color:inherit;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));transition:transform .15s ease,border-color .15s ease}
+  a.app{cursor:pointer}
+  a.app:hover{transform:translateY(-3px);border-color:rgba(124,131,255,.55)}
+  .app .ic{font-size:30px;line-height:1}
+  .app .nm{font-weight:800;font-size:16px;margin-top:12px}
+  .app .ds{color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.5}
+  .app.soon{opacity:.5}
+  .app .tag{display:inline-block;margin-top:12px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
+    border:1px solid var(--line);color:var(--faint)}
+  a.app .tag{color:var(--cyan);border-color:rgba(34,211,238,.35)}
+
+  /* ---- phone: the side nav becomes a bottom bar ---- */
+  @media (max-width:760px){
+    body{flex-direction:column-reverse}
+    .side{width:100%;flex-direction:row;gap:2px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+      border-right:0;border-top:1px solid var(--line);overflow-x:auto}
+    .brand{display:none}
+    .nav{flex:1;min-width:64px;flex-direction:column;gap:3px;padding:7px 4px;font-size:10.5px;text-align:center;white-space:nowrap}
+    .nav .soon-tag{display:none}
+    .wrap{padding:24px 16px 40px}
+  }
+</style>
+</head>
+<body>
+
+<nav class="side" id="side">
+  <div class="brand"><img src="icons/icon-192.png" alt="" width="38" height="38" style="display:block;margin-bottom:10px">CONCRETE MANAGEMENT<small>All concrete tools in one place</small></div>
+</nav>
+
+<div class="main" id="main">
+  <div class="pane" id="home">
+    <div class="wrap">
+      <h1>CONCRETE MANAGEMENT</h1>
+      <div class="sub">All concrete tools in one place</div>
+      <div class="apps" id="apps"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* One entry per tool. `src` = the tool's own page (loaded inside the shell); no `src` = not added yet. */
+const TOOLS=[
+  {id:'pour-tracker', name:'Pour Tracker',    icon:'🏗️', desc:'Real-time concrete pour monitoring',    src:'pour-tracker/index.html'},
+  {id:'ice',          name:'Ice Calculation', icon:'🧊', desc:'Ice quantity for concrete temperature'},
+  {id:'mixes',        name:'NCM Mixes',       icon:'🧪', desc:'Mix designs catalog'}
+];
+const side=document.getElementById('side'), main=document.getElementById('main'), apps=document.getElementById('apps');
+
+function navItem(id,icon,name,soon){
+  const a=document.createElement(soon?'div':'a');
+  a.className='nav'+(soon?' soon':''); a.dataset.id=id;
+  if(!soon) a.href='#'+id;
+  a.innerHTML=`<span class="ic">${icon}</span><span>${name}</span>${soon?'<span class="soon-tag">soon</span>':''}`;
+  side.appendChild(a);
+}
+navItem('home','🏠','Home',false);
+for(const t of TOOLS){
+  navItem(t.id,t.icon,t.name,!t.src);
+  apps.insertAdjacentHTML('beforeend', t.src
+    ? `<a class="app" href="#${t.id}"><div class="ic">${t.icon}</div><div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tag">Open ↗</span></a>`
+    : `<div class="app soon"><div class="ic">${t.icon}</div><div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tag">Coming soon</span></div>`);
+}
+
+/* Each tool's frame is created the first time it is opened and then kept alive,
+   so switching back and forth never reloads it or loses where you were. */
+function show(id){
+  const t=TOOLS.find(x=>x.id===id&&x.src);
+  if(!t) id='home';
+  if(t && !document.getElementById('pane-'+id)){
+    const p=document.createElement('div'); p.className='pane'; p.id='pane-'+id;
+    p.innerHTML=`<iframe src="${t.src}" title="${t.name}"></iframe>`;
+    main.appendChild(p);
+  }
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('show', p.id===(t?'pane-'+id:'home')));
+  document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active', n.dataset.id===id));
+  document.title = t ? (t.name+' · Concrete Management') : 'Concrete Management';
+}
+const route=()=>show(location.hash.slice(1)||'home');
+window.addEventListener('hashchange',route);
+route();
+</script>
+</body>
+</html>
