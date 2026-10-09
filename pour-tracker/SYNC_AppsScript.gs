@@ -1,98 +1,71 @@
 /**
- * Pour Tracker — shared state for ALL devices.
+ * Pour Tracker — shared state for ALL devices (Concrete Management copy).
  *
- * Stores the dashboard's Done marks + manual Required/Rate in a "STATE" tab of THIS sheet,
- * so a pour closed on one device disappears on every device. The sheet is the single source of truth.
+ * Keeps the dashboard's Done marks + manual Required/Rate, the users list and the edit log,
+ * so a pour closed on one device disappears on every device.
+ *
+ * Everything is stored in this script's own PROPERTIES (no spreadsheet). That is deliberate:
+ * PropertiesService / CacheService / LockService / ContentService need NO Google permissions,
+ * so deploying this web app never shows the "Google hasn't verified this app" consent screen.
+ * Do not add spreadsheet, Drive or URL-fetch services here — any of them brings that screen back
+ * (and don't even name those services in a comment: the scope scanner reads comments too).
  *
  * ── SETUP (once) ────────────────────────────────────────────────────────────
- *  1. Open the PLAN sheet in Google Sheets.
- *  2. Extensions  ▸  Apps Script.
- *  3. Delete whatever is there, paste ALL of this file, then click Save (💾).
- *  4. Deploy  ▸  New deployment  ▸  (gear ⚙)  ▸  Web app
- *        Description   : Pour Tracker sync
+ *  1. script.google.com ▸ New project ▸ paste ALL of this file ▸ Save.
+ *  2. Deploy ▸ New deployment ▸ (gear ⚙) ▸ Web app
  *        Execute as    : Me
- *        Who has access: Anyone            <-- must be "Anyone", not "Anyone with Google account"
- *     ▸ Deploy  ▸ Authorize access (approve the Google warning screens).
- *  5. Copy the "Web app" URL — it ends with /exec
- *  6. Paste it in the dashboard: ⚙ Settings ▸ "Sync URL" ▸ Load / Refresh.
- *
- *  The STATE tab is created automatically on first use. Don't rename it.
+ *        Who has access: Anyone
+ *     ▸ Deploy.
+ *  3. Copy the "Web app" URL (ends with /exec) into the dashboard's Sync URL.
  * ────────────────────────────────────────────────────────────────────────────
  */
 
-var SHEET_NAME = 'STATE';
 var TYPES = ['done', 'req', 'rate'];
+var P_STATE = 'S|';                                       // S|<type>|<key>  -> value
+var P_USER = 'U|';                                        // U|<deviceId>    -> JSON {name,lastSeen,blocked,ip}
+var P_LOG = 'L|';                                         // L|<n>           -> JSON [when,who,type,key,value]
+var P_LOGN = 'LOGN';                                      // number of the newest log entry
 
-function sheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(SHEET_NAME);
-  if (!sh) {
-    sh = ss.insertSheet(SHEET_NAME);
-    sh.getRange(1, 1, 1, 3).setValues([['type', 'key', 'value']]);
-  }
-  return sh;
-}
+function props_() { return PropertiesService.getScriptProperties(); }
 
 function readAll_() {
-  var sh = sheet_();
   var out = { done: {}, req: {}, rate: {} };
-  var last = sh.getLastRow();
-  if (last < 2) return out;
-  var rows = sh.getRange(2, 1, last - 1, 3).getValues();
-  for (var i = 0; i < rows.length; i++) {
-    var type = String(rows[i][0] || '').trim();
-    var key = String(rows[i][1] || '');
-    var val = String(rows[i][2] == null ? '' : rows[i][2]).trim();
-    if (!type || !key || val === '') continue;
-    if (TYPES.indexOf(type) < 0) continue;
+  var all = props_().getProperties();
+  for (var k in all) {
+    if (k.indexOf(P_STATE) !== 0) continue;
+    var rest = k.substring(P_STATE.length), cut = rest.indexOf('|');
+    if (cut < 0) continue;
+    var type = rest.substring(0, cut), key = rest.substring(cut + 1), val = String(all[k]).trim();
+    if (TYPES.indexOf(type) < 0 || !key || val === '') continue;
     out[type][key] = (type === 'done') ? true : Number(val);
   }
   return out;
 }
 
-/** Insert / update / delete one (type,key) row. Empty value = delete. */
+/** Insert / update / delete one (type,key). Empty value = delete. */
 function writeOne_(type, key, value) {
   if (TYPES.indexOf(type) < 0 || !key) return;
-  var sh = sheet_();
-  var last = sh.getLastRow();
-  var rowIdx = -1;
-  if (last >= 2) {
-    var keys = sh.getRange(2, 1, last - 1, 2).getValues();
-    for (var i = 0; i < keys.length; i++) {
-      if (String(keys[i][0]).trim() === type && String(keys[i][1]) === String(key)) { rowIdx = i + 2; break; }
-    }
-  }
-  var remove = (value === '' || value === null || value === undefined);
-  if (rowIdx > 0) {
-    if (remove) sh.deleteRow(rowIdx);
-    else sh.getRange(rowIdx, 3).setValue(value);
-  } else if (!remove) {
-    sh.appendRow([type, key, value]);
-  }
+  var name = P_STATE + type + '|' + key;
+  if (value === '' || value === null || value === undefined) props_().deleteProperty(name);
+  else props_().setProperty(name, String(value));
 }
 
-/** Delete every row of one type (used by "Reset done marks"). */
+/** Delete every entry of one type (used by "Reset done marks"). */
 function clearType_(type) {
   if (TYPES.indexOf(type) < 0) return;
-  var sh = sheet_();
-  var last = sh.getLastRow();
-  if (last < 2) return;
-  var col = sh.getRange(2, 1, last - 1, 1).getValues();
-  for (var i = col.length - 1; i >= 0; i--) {            // bottom-up so row numbers stay valid
-    if (String(col[i][0]).trim() === type) sh.deleteRow(i + 2);
-  }
+  var p = props_(), all = p.getProperties(), prefix = P_STATE + type + '|';
+  for (var k in all) if (k.indexOf(prefix) === 0) p.deleteProperty(k);
 }
 
 /* ── Presence: how many devices have the dashboard open right now ──────────────
-   Deliberately kept OUT of the STATE sheet — it lives in the script cache, so a heartbeat
-   every 30s never writes to the sheet and can never touch the Done / Required / Rate rows.
+   Lives in the script cache, so a heartbeat every 30s never touches the stored state.
    Each device pings with its own id; a device counts as "open" until PRESENCE_TTL_MS passes
    with no ping (i.e. it drops off ~90s after the app is closed). */
 var PRESENCE_TTL_MS = 90 * 1000;
 var PRESENCE_KEY = 'presence';
 
-/** Heartbeat. Stores {deviceId: [lastSeenMs, name]} in the cache and returns
- *  { online: <count>, who: [{name, seen}] } — the admin panel lists the names. */
+/** Heartbeat. Stores {deviceId: [lastSeenMs, name, ip]} in the cache and returns
+ *  { online: <count>, who: [{name, seen, ip}] } — the admin panel lists the names. */
 function ping_(who, name, ip) {
   var cache = CacheService.getScriptCache();
   var lock = LockService.getScriptLock();
@@ -107,8 +80,7 @@ function ping_(who, name, ip) {
     if (who) map[who] = [now, String(name || ''), String(ip || '')];
     for (var k in map) {                                  // drop devices that stopped pinging
       var v = map[k];
-      var t = (v && v.length) ? Number(v[0]) : Number(v);  // tolerate the old number-only format
-      if (now - t < PRESENCE_TTL_MS) live[k] = [t, (v && v.length) ? String(v[1] || '') : '', (v && v.length > 2) ? String(v[2] || '') : ''];
+      if (v && v.length && now - Number(v[0]) < PRESENCE_TTL_MS) live[k] = [Number(v[0]), String(v[1] || ''), String(v[2] || '')];
     }
     cache.put(PRESENCE_KEY, JSON.stringify(live), 600);
   } finally {
@@ -121,8 +93,8 @@ function ping_(who, name, ip) {
 }
 
 /* ── Single admin lock: only one device may hold admin mode at a time ─────────
-   Lives in the cache (never the sheet). The holder's heartbeat (ping with admin=1) keeps the lock
-   alive; if they stop for ADMIN_TTL_MS the lock frees so someone else can take it. */
+   Lives in the cache. The holder's heartbeat (ping with admin=1) keeps the lock alive;
+   if they stop for ADMIN_TTL_MS the lock frees so someone else can take it. */
 var ADMIN_KEY = 'adminHolder';
 var ADMIN_TTL_MS = 120 * 1000;
 function adminClaim_(dev, name) {
@@ -133,8 +105,7 @@ function adminClaim_(dev, name) {
     var now = new Date().getTime(), raw = cache.get(ADMIN_KEY), h = null;
     if (raw) { try { h = JSON.parse(raw); } catch (e2) {} }
     if (h && h.dev && h.dev !== dev && (now - Number(h.ts || 0) < ADMIN_TTL_MS)) {
-      // NOTE: ok MUST be true — the dashboard's syncCall discards any reply with ok:false (treats it as a
-      // network failure) and would then grant admin. The "held" flag carries the real answer.
+      // ok stays true: the "held" flag carries the real answer.
       return { ok: true, held: true, by: (h.name || '') };     // someone else holds it
     }
     cache.put(ADMIN_KEY, JSON.stringify({ dev: dev, name: String(name || ''), ts: now }), 600);
@@ -154,96 +125,67 @@ function adminRelease_(dev) {
 }
 
 /* ── Users registry: remember each visitor's name by their DEVICE id, and let the admin block a device ──
-   Its own USERS tab (dev | name | lastSeen | blocked | ip). Keyed by device, not IP — a whole office
-   shares one public IP. The IP the client looked up is kept only as info for the admin.
-   A deterrent, not hard security. Never touches the STATE rows. */
-var USERS_NAME = 'USERS';
-function usersSheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(USERS_NAME);
-  if (!sh) { sh = ss.insertSheet(USERS_NAME); sh.getRange(1, 1, 1, 5).setValues([['dev', 'name', 'lastSeen', 'blocked', 'ip']]); }
-  return sh;
+   Keyed by device, not IP — a whole office shares one public IP. The IP the client looked up is kept
+   only as info for the admin. A deterrent, not hard security. */
+function userGet_(dev) {
+  if (!dev) return null;
+  var raw = props_().getProperty(P_USER + dev);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (e) { return null; }
 }
-function userFindRow_(sh, ip) {
-  var last = sh.getLastRow(); if (last < 2 || !ip) return -1;
-  var ips = sh.getRange(2, 1, last - 1, 1).getValues();
-  for (var i = 0; i < ips.length; i++) if (String(ips[i][0]).trim() === String(ip).trim()) return i + 2;
-  return -1;
-}
-function isBlocked_(v) { return v === true || String(v).toUpperCase() === 'TRUE'; }
+function userPut_(dev, u) { props_().setProperty(P_USER + dev, JSON.stringify(u)); }
 function userUpsert_(dev, name, ip) {
   if (!dev) return;
-  var sh = usersSheet_(), row = userFindRow_(sh, dev), now = new Date();
-  if (row > 0) { if (name) sh.getRange(row, 2).setValue(name); sh.getRange(row, 3).setValue(now); if (ip) sh.getRange(row, 5).setValue(ip); }
-  else sh.appendRow([String(dev), String(name || ''), now, false, String(ip || '')]);
+  var u = userGet_(dev) || { name: '', blocked: false, ip: '' };
+  if (name) u.name = String(name);
+  if (ip) u.ip = String(ip);
+  u.lastSeen = new Date().getTime();
+  userPut_(dev, u);
 }
-function userTouch_(ip) {                                   // bump lastSeen only (called by whoami)
-  if (!ip) return; var sh = usersSheet_(), row = userFindRow_(sh, ip);
-  if (row > 0) sh.getRange(row, 3).setValue(new Date());
-}
-function userLookup_(ip) {
-  if (!ip) return null; var sh = usersSheet_(), row = userFindRow_(sh, ip);
-  if (row < 2) return null; var v = sh.getRange(row, 1, 1, 4).getValues()[0];
-  return { dev: String(v[0]), name: String(v[1] || ''), blocked: isBlocked_(v[3]) };
+function userLookup_(dev) {
+  var u = userGet_(dev);
+  return u ? { dev: dev, name: String(u.name || ''), blocked: !!u.blocked } : null;
 }
 function usersAll_() {
-  var sh = usersSheet_(), last = sh.getLastRow(); if (last < 2) return [];
-  var rows = sh.getRange(2, 1, last - 1, 5).getValues(), out = [];
-  for (var i = 0; i < rows.length; i++) {
-    if (!String(rows[i][0]).trim()) continue; var ls = rows[i][2];
-    out.push({ dev: String(rows[i][0]), name: String(rows[i][1] || ''), ip: String(rows[i][4] || ''),
-      lastSeen: (ls instanceof Date) ? ls.getTime() : String(ls || ''), blocked: isBlocked_(rows[i][3]) });
+  var all = props_().getProperties(), out = [];
+  for (var k in all) {
+    if (k.indexOf(P_USER) !== 0) continue;
+    var u = null; try { u = JSON.parse(all[k]); } catch (e) {}
+    if (!u) continue;
+    out.push({ dev: k.substring(P_USER.length), name: String(u.name || ''), ip: String(u.ip || ''),
+      lastSeen: Number(u.lastSeen || 0), blocked: !!u.blocked });
   }
   out.sort(function (a, b) { return (b.lastSeen || 0) - (a.lastSeen || 0); });
   return out;
 }
-function userSetBlocked_(ip, blocked) {
-  if (!ip) return; var sh = usersSheet_(), row = userFindRow_(sh, ip);
-  if (row < 2) { sh.appendRow([String(ip), '', new Date(), !!blocked, '']); return; }
-  sh.getRange(row, 4).setValue(!!blocked);
+function userSetBlocked_(dev, blocked) {
+  if (!dev) return;
+  var u = userGet_(dev) || { name: '', ip: '', lastSeen: new Date().getTime() };
+  u.blocked = !!blocked;
+  userPut_(dev, u);
 }
 
-/* ── Edit log: who changed what, appended to a separate LOG tab ────────────────
-   A real audit trail has to survive, so unlike presence this IS written to the sheet —
-   but to its OWN tab. Nothing here ever touches the STATE rows. */
-var LOG_NAME = 'LOG';
-var LOG_MAX = 5000;                                       // trim oldest beyond this
-
-function logSheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(LOG_NAME);
-  if (!sh) {
-    sh = ss.insertSheet(LOG_NAME);
-    sh.getRange(1, 1, 1, 5).setValues([['when', 'who', 'type', 'key', 'value']]);
-  }
-  return sh;
-}
+/* ── Edit log: who changed what ───────────────────────────────────────────────
+   One property per entry, numbered; only the newest LOG_MAX are kept. */
+var LOG_MAX = 300;
 
 function logWrite_(by, type, key, value) {
   try {
-    var sh = logSheet_();
-    sh.appendRow([new Date(), String(by || '—'), String(type || ''), String(key || ''),
-                  (value === '' || value === null || value === undefined) ? '(cleared)' : String(value)]);
-    var last = sh.getLastRow();
-    if (last > LOG_MAX + 1) sh.deleteRows(2, last - LOG_MAX - 1);   // drop oldest, keep the header
+    var p = props_(), n = Number(p.getProperty(P_LOGN) || 0) + 1;
+    p.setProperty(P_LOG + n, JSON.stringify([new Date().getTime(), String(by || '—'), String(type || ''), String(key || ''),
+      (value === '' || value === null || value === undefined) ? '(cleared)' : String(value)]));
+    p.setProperty(P_LOGN, String(n));
+    if (n > LOG_MAX) p.deleteProperty(P_LOG + (n - LOG_MAX));   // drop the oldest
   } catch (e) {}                                          // logging must never break an edit
 }
 
 /** Most recent entries, newest first — for the admin panel. */
 function logRead_(limit) {
-  var sh = logSheet_();
-  var last = sh.getLastRow();
-  if (last < 2) return [];
-  var n = Math.min(limit || 100, last - 1);
-  var rows = sh.getRange(last - n + 1, 1, n, 5).getValues();
-  var out = [];
-  for (var i = rows.length - 1; i >= 0; i--) {
-    var w = rows[i][0];
-    out.push({
-      when: (w instanceof Date) ? w.getTime() : String(w),
-      who: String(rows[i][1] || ''), type: String(rows[i][2] || ''),
-      key: String(rows[i][3] || ''), value: String(rows[i][4] == null ? '' : rows[i][4])
-    });
+  var all = props_().getProperties(), n = Number(all[P_LOGN] || 0), out = [];
+  for (var i = n; i > 0 && out.length < (limit || 100); i--) {
+    var raw = all[P_LOG + i]; if (!raw) continue;
+    var r = null; try { r = JSON.parse(raw); } catch (e) {}
+    if (r) out.push({ when: r[0], who: String(r[1] || ''), type: String(r[2] || ''), key: String(r[3] || ''), value: String(r[4] == null ? '' : r[4]) });
   }
   return out;
 }
@@ -263,48 +205,39 @@ function doGet(e) {
   var payload;
   try {
     var action = String(p.action || 'get');
-    if (action === 'ping') {                              // heartbeat only — never reads the STATE sheet
+    if (action === 'ping') {                              // heartbeat only — never reads the stored state
       var pr = ping_(String(p.who || ''), String(p.name || ''), String(p.ip || ''));
       if (String(p.admin || '') === '1') adminRefresh_(String(p.who || ''), String(p.name || ''));
-      payload = { ok: true, online: pr.online, who: pr.who };
-      return reply_(p, payload);
+      return reply_(p, { ok: true, online: pr.online, who: pr.who });
     }
     if (action === 'adminclaim') {                        // request the single admin seat
-      payload = adminClaim_(String(p.who || ''), String(p.name || ''));
-      return reply_(p, payload);
+      return reply_(p, adminClaim_(String(p.who || ''), String(p.name || '')));
     }
     if (action === 'adminrelease') {                      // give up the admin seat
       adminRelease_(String(p.who || ''));
-      payload = { ok: true };
-      return reply_(p, payload);
+      return reply_(p, { ok: true });
     }
-    if (action === 'whoami') {                            // client asks by IP: my remembered name + am I blocked
+    if (action === 'whoami') {                            // client asks by device: my remembered name + am I blocked
       var u = userLookup_(String(p.dev || ''));
-      if (u) { try { userTouch_(String(p.dev || '')); } catch (e) {} }
-      payload = { ok: true, name: u ? u.name : '', blocked: u ? u.blocked : false };
-      return reply_(p, payload);
+      return reply_(p, { ok: true, name: u ? u.name : '', blocked: u ? u.blocked : false });
     }
-    if (action === 'register') {                          // user typed their name -> remember it against their IP
-      var lkR = LockService.getScriptLock(); try { lkR.waitLock(10000); } catch (e) {}
-      try { userUpsert_(String(p.dev || ''), String(p.name || ''), String(p.ip || '')); } finally { try { lkR.releaseLock(); } catch (e) {} }
+    if (action === 'register') {                          // user typed their name -> remember it against their device
+      var lkR = LockService.getScriptLock(); try { lkR.waitLock(10000); } catch (e1) {}
+      try { userUpsert_(String(p.dev || ''), String(p.name || ''), String(p.ip || '')); } finally { try { lkR.releaseLock(); } catch (e2) {} }
       var ur = userLookup_(String(p.dev || ''));
-      payload = { ok: true, blocked: ur ? ur.blocked : false };
-      return reply_(p, payload);
+      return reply_(p, { ok: true, blocked: ur ? ur.blocked : false });
     }
     if (action === 'users') {                             // admin panel: every known visitor
-      payload = { ok: true, users: usersAll_() };
-      return reply_(p, payload);
+      return reply_(p, { ok: true, users: usersAll_() });
     }
-    if (action === 'block' || action === 'unblock') {     // admin: block / unblock an IP
-      var lkB = LockService.getScriptLock(); try { lkB.waitLock(10000); } catch (e) {}
-      try { userSetBlocked_(String(p.dev || ''), action === 'block'); } finally { try { lkB.releaseLock(); } catch (e) {} }
+    if (action === 'block' || action === 'unblock') {     // admin: block / unblock a device
+      var lkB = LockService.getScriptLock(); try { lkB.waitLock(10000); } catch (e3) {}
+      try { userSetBlocked_(String(p.dev || ''), action === 'block'); } finally { try { lkB.releaseLock(); } catch (e4) {} }
       logWrite_(p.by, action === 'block' ? 'BLOCK device' : 'UNBLOCK device', String(p.name || p.dev || ''), '');
-      payload = { ok: true };
-      return reply_(p, payload);
+      return reply_(p, { ok: true });
     }
     if (action === 'log') {                               // admin panel: recent edits
-      payload = { ok: true, log: logRead_(Number(p.limit || 100)) };
-      return reply_(p, payload);
+      return reply_(p, { ok: true, log: logRead_(Number(p.limit || 100)) });
     }
     if (action === 'set' || action === 'clear') {
       var lock = LockService.getScriptLock();
@@ -312,21 +245,16 @@ function doGet(e) {
       try {
         if (action === 'set') writeOne_(String(p.type || ''), String(p.key || ''), p.value === undefined ? '' : p.value);
         else clearType_(String(p.type || ''));
+        logWrite_(p.by, action === 'clear' ? ('clear:' + String(p.type || '')) : String(p.type || ''),
+                  action === 'clear' ? '(all)' : String(p.key || ''),
+                  action === 'clear' ? '' : p.value);
       } finally {
         lock.releaseLock();
       }
-      logWrite_(p.by, action === 'clear' ? ('clear:' + String(p.type || '')) : String(p.type || ''),
-                action === 'clear' ? '(all)' : String(p.key || ''),
-                action === 'clear' ? '' : p.value);
     }
     payload = { ok: true, state: readAll_() };
   } catch (err) {
     payload = { ok: false, error: String(err) };
   }
-  var json = JSON.stringify(payload);
-  if (p.callback) {                                       // JSONP -> no CORS problems in the dashboard
-    return ContentService.createTextOutput(p.callback + '(' + json + ')')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
-  }
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+  return reply_(p, payload);
 }
