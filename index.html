@@ -161,11 +161,6 @@ function show(id){
   document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active', n.dataset.id===id));
   document.title = t ? (t.name+' · Concrete Management') : 'Concrete Management';
 }
-// Clicking a desktop program in the menu or on its card starts it straight away (a reload never does).
-document.addEventListener('click',e=>{
-  const a=e.target.closest('a.nav,a.app'); if(!a||!ON_WINDOWS) return;
-  const t=TOOLS.find(x=>x.id===a.dataset.id&&x.launch); if(t) location.href=t.launch;
-});
 const OLD_IDS={'pour-tracker':'dispatching'};   // links saved before the rename still land on the right tool
 const route=()=>{ const h=location.hash.slice(1)||'home'; show(OLD_IDS[h]||h); };
 window.addEventListener('hashchange',route);
