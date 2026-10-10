@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
+<!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
+<meta name="app-build" content="20261010-000001">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -164,6 +166,32 @@ function show(id){
 const OLD_IDS={'pour-tracker':'dispatching'};   // links saved before the rename still land on the right tool
 const route=()=>{ const h=location.hash.slice(1)||'home'; show(OLD_IDS[h]||h); };
 window.addEventListener('hashchange',route);
+
+/* ---------- self-update ----------
+   A window left open (or a stale cached copy) would keep running old code. On open: if the live copy is
+   newer, reload straight away. Later (every 5 min): only reload by itself while on Home, where nothing
+   can be lost; inside a tool show an "Update" button in the menu instead. */
+const APP_BUILD=(document.querySelector('meta[name="app-build"]')||{}).content||'';
+async function checkForUpdate(atOpen){
+  try{
+    const base=location.href.split('#')[0].split('?')[0];
+    const r=await fetch(base+'?cb='+Date.now(),{cache:'no-store'}); if(!r.ok) return;
+    const m=(await r.text()).match(/name="app-build"\s+content="([^"]*)"/i);
+    const live=m&&m[1];
+    if(!live||live===APP_BUILD) return;
+    const go=()=>{ sessionStorage.setItem('cm_upd',live); location.replace(base+'?v='+encodeURIComponent(live)+location.hash); };
+    if(sessionStorage.getItem('cm_upd')===live) return;          // already reloaded for this build — never loop
+    const onHome=!document.querySelector('.pane.show:not(#home)');
+    if(atOpen||onHome){ go(); return; }
+    if(!document.getElementById('updBtn')){
+      const b=document.createElement('a'); b.id='updBtn'; b.className='nav'; b.style.color='var(--cyan)';
+      b.innerHTML='<span class="ic">🔄</span><span class="nm-full">Update available</span><span class="nm-short">Update</span>';
+      b.addEventListener('click',go); side.appendChild(b);
+    }
+  }catch(e){}
+}
+checkForUpdate(true); setInterval(()=>checkForUpdate(false),300000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) checkForUpdate(false); });
 route();
 </script>
 </body>
