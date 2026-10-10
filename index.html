@@ -33,6 +33,7 @@
     color:var(--muted);text-decoration:none;font-weight:600;font-size:13.5px;cursor:pointer;
     transition:background .15s ease,color .15s ease}
   .nav span{white-space:nowrap}
+  .nav .nm-short{display:none}
   .nav .ic{font-size:18px;line-height:1;width:26px;text-align:center;flex:none}
   .nav img.ic{height:26px;border-radius:6px;display:block;background:#fff}
   .nav:hover{background:rgba(255,255,255,.05);color:var(--ink)}
@@ -82,7 +83,10 @@
     .side{width:100%;flex-direction:row;gap:2px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));
       border-right:0;border-top:1px solid var(--line);overflow-x:auto}
     .brand{display:none}
-    .nav{flex:1;min-width:64px;flex-direction:column;gap:3px;padding:7px 4px;font-size:10.5px;text-align:center;white-space:nowrap}
+    /* six equal slots; each shows the tool's short name so the labels never run into each other */
+    .nav{flex:1 1 0;min-width:0;flex-direction:column;gap:3px;padding:7px 2px;font-size:10.5px;text-align:center}
+    .nav .nm-full{display:none}
+    .nav .nm-short{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
     .nav .soon-tag{display:none}
     .wrap{padding:24px 16px 40px}
   }
@@ -111,13 +115,13 @@
    copy of each to maintain and their saved data is the same whether opened here or on their own. */
 const SITE='https://elkady591.github.io/';
 const TOOLS=[
-  {id:'dispatching',  name:'Concrete Dispatching', img:SITE+'Concrete-Dispatching/icons/icon-192.png', desc:'Real-time concrete pour monitoring', src:SITE+'Concrete-Dispatching/'},
-  {id:'ice',          name:'Ice Calculation', img:SITE+'Ice-Calculator/icon-192.png', desc:'Ice blocks to order for a pour',         src:SITE+'Ice-Calculator/'},
-  {id:'mixes',        name:'NCM Mixes',       img:SITE+'NCM-Mixes/icon-192.png',      desc:'Mix designs catalog and materials',     src:SITE+'NCM-Mixes/'},
+  {id:'dispatching',  name:'Concrete Dispatching', short:'Dispatch', img:SITE+'Concrete-Dispatching/icons/icon-192.png', desc:'Real-time concrete pour monitoring', src:SITE+'Concrete-Dispatching/'},
+  {id:'ice',          name:'Ice Calculation', short:'Ice', img:SITE+'Ice-Calculator/icon-192.png', desc:'Ice blocks to order for a pour',         src:SITE+'Ice-Calculator/'},
+  {id:'mixes',        name:'NCM Mixes', short:'Mixes', img:SITE+'NCM-Mixes/icon-192.png',      desc:'Mix designs catalog and materials',     src:SITE+'NCM-Mixes/'},
   // Desktop programs (.exe on the office PC), not web pages: `launch` is a URL protocol registered on that PC
   // by register-desktop-tools.reg — the page can only ask Windows to start them.
-  {id:'pumps',        name:'Pumps Movements',   img:'icons/pumps.png',    desc:'Pump movements sheet from the WhatsApp export', launch:'ncm-pumps://open'},
-  {id:'rejected',     name:'Rejected Concrete', img:'icons/rejected.png', desc:'Rejected concrete sheet from the WhatsApp export', launch:'ncm-rejected://open'}
+  {id:'pumps',        name:'Pumps Movements', short:'Pumps', img:'icons/pumps.png',    desc:'Pump movements sheet from the WhatsApp export', launch:'ncm-pumps://open'},
+  {id:'rejected',     name:'Rejected Concrete', short:'Rejected', img:'icons/rejected.png', desc:'Rejected concrete sheet from the WhatsApp export', launch:'ncm-rejected://open'}
 ];
 const ON_WINDOWS=/Windows NT/.test(navigator.userAgent);
 const pic=(t,cls)=>t.img?`<img class="${cls}" src="${t.img}" alt="">`:`<span class="${cls}">${t.icon||''}</span>`;
@@ -127,7 +131,7 @@ function navItem(t,soon){
   const a=document.createElement(soon?'div':'a');
   a.className='nav'+(soon?' soon':''); a.dataset.id=t.id;
   if(!soon) a.href='#'+t.id;
-  a.innerHTML=`${pic(t,'ic')}<span>${t.name}</span>${soon?'<span class="soon-tag">soon</span>':''}`;
+  a.innerHTML=`${pic(t,'ic')}<span class="nm-full">${t.name}</span><span class="nm-short">${t.short||t.name}</span>${soon?'<span class="soon-tag">soon</span>':''}`;
   side.appendChild(a);
 }
 navItem({id:'home',name:'Home',icon:'🏠'},false);
