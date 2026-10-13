@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261010-000001">
+<meta name="app-build" content="20261013-000001">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -119,6 +119,7 @@
 const SITE='https://elkady591.github.io/';
 const TOOLS=[
   {id:'dispatching',  name:'Concrete Dispatching', short:'Dispatch', img:SITE+'Concrete-Dispatching/icons/icon-192.png', desc:'Real-time concrete pour monitoring', src:SITE+'Concrete-Dispatching/'},
+  {id:'pouring',      name:'Pouring Report', short:'Pouring', img:SITE+'Pouring-Report/icon-192.png', desc:'Hourly pour rate report from the truck messages', src:SITE+'Pouring-Report/'},
   {id:'ice',          name:'Ice Calculation', short:'Ice', img:SITE+'Ice-Calculator/icon-192.png', desc:'Ice blocks to order for a pour',         src:SITE+'Ice-Calculator/'},
   {id:'mixes',        name:'NCM Mixes', short:'Mixes', img:SITE+'NCM-Mixes/icon-192.png',      desc:'Mix designs catalog and materials',     src:SITE+'NCM-Mixes/'},
   // Desktop programs (.exe on the office PC), not web pages: `launch` is a URL protocol registered on that PC
@@ -152,7 +153,7 @@ function show(id){
   if(!t) id='home';
   if(t && !document.getElementById('pane-'+id)){
     const p=document.createElement('div'); p.className='pane'; p.id='pane-'+id;
-    p.innerHTML = t.src ? `<iframe src="${t.src}" title="${t.name}"></iframe>`
+    p.innerHTML = t.src ? `<iframe src="${t.src}" title="${t.name}" allow="web-share; clipboard-write"></iframe>`
       : `<div class="desk">${pic(t,'ic')}<h2>${t.name}</h2><p>${t.desc}</p>
            ${ON_WINDOWS ? `<a class="run" href="${t.launch}">▶ Run program</a>
              <p class="note">Runs on the office PC. If nothing opens, the program is not set up on this computer.</p>`
