@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261013-000001">
+<meta name="app-build" content="20261014-000001">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -66,19 +66,25 @@
   .wrap{max-width:980px;margin:0 auto;padding:36px 20px 60px}
   h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.3px}
   .sub{color:var(--muted);font-size:13px;margin-top:4px}
-  .apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-top:26px}
-  .app{display:block;padding:20px 18px;border-radius:18px;border:1px solid var(--line);text-decoration:none;color:inherit;
+  /* today's numbers on top of Home */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px}
+  .kpi{display:block;text-decoration:none;color:inherit;background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+  a.kpi:hover{border-color:rgba(124,131,255,.55)}
+  .kpi .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700}
+  .kpi .v{font-family:'JetBrains Mono',Consolas,monospace;font-size:26px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums}
+  .kpi .v small{font-size:12px;color:var(--faint);margin-left:3px;font-weight:600}
+  .kpi .s{font-size:11px;color:var(--faint);margin-top:3px}
+  /* the tools, in two groups: online (any device) and programs that run on the office PC */
+  .grp{margin-top:24px}
+  .grp h2{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:0 0 10px}
+  .apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .app{display:block;text-align:center;padding:16px 10px;border-radius:16px;border:1px solid var(--line);text-decoration:none;color:inherit;
     background:linear-gradient(180deg,var(--panel),var(--panel2));transition:transform .15s ease,border-color .15s ease}
-  a.app{cursor:pointer}
   a.app:hover{transform:translateY(-3px);border-color:rgba(124,131,255,.55)}
-  .app .ic{font-size:30px;line-height:1;display:block}
-  .app img.ic{width:56px;height:56px;border-radius:13px;background:#fff}
-  .app .nm{font-weight:800;font-size:16px;margin-top:12px}
-  .app .ds{color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.5}
-  .app.soon{opacity:.5}
-  .app .tag{display:inline-block;margin-top:12px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
-    border:1px solid var(--line);color:var(--faint)}
-  a.app .tag{color:var(--cyan);border-color:rgba(34,211,238,.35)}
+  .app img.ic{width:64px;height:64px;border-radius:15px;background:#fff;display:block;margin:0 auto}
+  .app .nm{font-weight:700;font-size:13px;margin-top:10px}
+  .app .ds{color:var(--faint);font-size:11px;margin-top:3px;line-height:1.4}
 
   /* ---- phone: the side nav becomes a bottom bar ---- */
   @media (max-width:760px){
@@ -92,6 +98,11 @@
     .nav .nm-short{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
     .nav .soon-tag{display:none}
     .wrap{padding:24px 16px 40px}
+    .kpis{grid-template-columns:repeat(2,1fr);gap:8px}
+    .kpi{padding:11px 12px} .kpi .v{font-size:21px}
+    .apps{grid-template-columns:repeat(3,1fr);gap:8px}
+    .app{padding:12px 4px} .app img.ic{width:52px;height:52px;border-radius:13px}
+    .app .ds{display:none} .app .nm{font-size:11.5px}
   }
 </style>
 </head>
@@ -106,7 +117,8 @@
     <div class="wrap">
       <h1>CONCRETE MANAGEMENT</h1>
       <div class="sub">All concrete tools in one place</div>
-      <div class="apps" id="apps"></div>
+      <div class="kpis" id="kpis"></div>
+      <div id="apps"></div>
     </div>
   </div>
 </div>
@@ -139,20 +151,17 @@ function navItem(t,soon){
   side.appendChild(a);
 }
 navItem({id:'home',name:'Home',icon:'🏠'},false);
-for(const t of TOOLS){
-  navItem(t,!(t.src||t.launch));
-  apps.insertAdjacentHTML('beforeend', (t.src||t.launch)
-    ? `<a class="app" href="#${t.id}" data-id="${t.id}">${pic(t,'ic')}<div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tag">${t.launch?'Desktop program ▶':'Open ↗'}</span></a>`
-    : `<div class="app soon">${pic(t,'ic')}<div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tag">Coming soon</span></div>`);
-}
+for(const t of TOOLS) navItem(t,!(t.src||t.launch));
+const tile=t=>`<a class="app" href="#${t.id}" data-id="${t.id}">${pic(t,'ic')}<div class="nm">${t.name}</div><div class="ds">${t.desc}</div></a>`;
+const group=(title,list)=>list.length?`<div class="grp"><h2>${title}</h2><div class="apps">${list.map(tile).join('')}</div></div>`:'';
+apps.innerHTML=group('Online — any device',TOOLS.filter(t=>t.src))+group('Office PC programs',TOOLS.filter(t=>t.launch));
 
 /* Each tool's frame is created the first time it is opened and then kept alive,
    so switching back and forth never reloads it or loses where you were. */
-function show(id){
-  const t=TOOLS.find(x=>x.id===id&&(x.src||x.launch));
-  if(!t) id='home';
-  if(t && !document.getElementById('pane-'+id)){
-    const p=document.createElement('div'); p.className='pane'; p.id='pane-'+id;
+function makePane(t){
+  let p=document.getElementById('pane-'+t.id);
+  if(!p){
+    p=document.createElement('div'); p.className='pane'; p.id='pane-'+t.id;
     p.innerHTML = t.src ? `<iframe src="${t.src}" title="${t.name}" allow="web-share; clipboard-write"></iframe>`
       : `<div class="desk">${pic(t,'ic')}<h2>${t.name}</h2><p>${t.desc}</p>
            ${ON_WINDOWS ? `<a class="run" href="${t.launch}">▶ Run program</a>
@@ -160,6 +169,12 @@ function show(id){
            : `<p class="note">This is a desktop program — it runs on the office PC only.</p>`}</div>`;
     main.appendChild(p);
   }
+  return p;
+}
+function show(id){
+  const t=TOOLS.find(x=>x.id===id&&(x.src||x.launch));
+  if(!t) id='home';
+  if(t) makePane(t);
   document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('show', p.id===(t?'pane-'+id:'home')));
   document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active', n.dataset.id===id));
   document.title = t ? (t.name+' · Concrete Management') : 'Concrete Management';
@@ -194,6 +209,52 @@ async function checkForUpdate(atOpen){
 checkForUpdate(true); setInterval(()=>checkForUpdate(false),300000);
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) checkForUpdate(false); });
 route();
+
+/* ---------- today's numbers on Home ----------
+   Production and trucks come straight from the trucks sheet's "Trucks Tracking" tab (its own
+   "Today ( 8 AM : 8 AM )" / "Yesterday ( 8 AM : 8 AM )" TOTAL cells, "Loaded Trucks", "Working Trucks Today").
+   Active pours is worked out by Concrete Dispatching (plan + trucks + Done marks), so its page is started in
+   the background as soon as this opens and the count is read from it — it shows up a few seconds after opening. */
+const TRUCKS_CSV='https://docs.google.com/spreadsheets/d/1oZfnrFmYL46zKtTH8htHyLjLYf5udq5hL-TcVdGwrIE/export?format=csv&gid=1257690697';
+const KPI={};
+const kfmt=n=>n==null?'—':Math.round(n).toLocaleString('en-US');
+function drawKpis(){
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi"><div class="l">Production today</div><div class="v">${kfmt(KPI.t8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></div>
+    <div class="kpi"><div class="l">Yesterday</div><div class="v">${kfmt(KPI.y8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></div>
+    <a class="kpi" href="#dispatching"><div class="l">Active pours</div><div class="v" style="color:var(--cyan)">${KPI.active==null?'—':KPI.active}</div><div class="s">running now</div></a>
+    <div class="kpi"><div class="l">Trucks out now</div><div class="v">${kfmt(KPI.loaded)}<small>/ ${kfmt(KPI.working)}</small></div><div class="s">loaded / working</div></div>`;
+}
+function csvLine(line){ const o=[]; let c='', q=false; for(const ch of line){ if(ch==='"') q=!q; else if(ch===','&&!q){ o.push(c); c=''; } else c+=ch; } o.push(c); return o; }
+async function loadKpis(){
+  try{
+    const r=await fetch(TRUCKS_CSV+'&_='+Date.now(),{cache:'no-store'}); if(!r.ok) return;
+    const rows=(await r.text()).split(/\r?\n/).map(csvLine);
+    const v=s=>{ const x=String(s==null?'':s).replace(/[^0-9.]/g,''); return x===''?null:parseFloat(x); };
+    const block=re=>{                                     // the TOTAL under a "Today/Yesterday ( 8 AM : 8 AM )" title
+      for(let i=0;i<rows.length;i++) for(let j=0;j<rows[i].length;j++) if(re.test(rows[i][j]||'')){
+        for(let k=i+1;k<Math.min(rows.length,i+12);k++) if(/^\s*total\s*$/i.test(rows[k][j]||'')) return v(rows[k][j+1]);
+        return null; }
+      return undefined; };
+    const t8=block(/^\s*today\s*\(\s*8\s*AM/i), y8=block(/^\s*yesterday\s*\(\s*8\s*AM/i);
+    if(t8!==undefined) KPI.t8=t8; if(y8!==undefined) KPI.y8=y8;
+    for(const row of rows) for(let j=0;j<row.length;j++){
+      if(/^\s*loaded trucks\s*$/i.test(row[j]||'')) KPI.loaded=v(row.slice(j+1).find(x=>String(x).trim()));
+      if(/^\s*working trucks today\s*$/i.test(row[j]||'')) KPI.working=v(row.slice(j+1).find(x=>String(x).trim()));
+    }
+  }catch(e){}
+  drawKpis();
+}
+function readActive(){
+  try{
+    const fr=document.querySelector('#pane-dispatching iframe');
+    const n=fr&&fr.contentWindow.eval('(typeof LAST!=="undefined"&&LAST.matrix&&LAST.matrix.length)?VD.open.length:null');
+    if(typeof n==='number' && n!==KPI.active){ KPI.active=n; drawKpis(); }
+  }catch(e){}                                             // not loaded yet, or opened from another address
+}
+drawKpis(); loadKpis(); setInterval(loadKpis,60000);
+makePane(TOOLS.find(t=>t.id==='dispatching'));           // start Concrete Dispatching in the background
+setInterval(readActive,3000);
 </script>
 </body>
 </html>
