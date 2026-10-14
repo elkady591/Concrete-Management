@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261014-000001">
+<meta name="app-build" content="20261014-000002">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -220,11 +220,22 @@ const KPI={};
 const kfmt=n=>n==null?'—':Math.round(n).toLocaleString('en-US');
 function drawKpis(){
   document.getElementById('kpis').innerHTML=`
-    <div class="kpi"><div class="l">Production today</div><div class="v">${kfmt(KPI.t8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></div>
-    <div class="kpi"><div class="l">Yesterday</div><div class="v">${kfmt(KPI.y8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></div>
-    <a class="kpi" href="#dispatching"><div class="l">Active pours</div><div class="v" style="color:var(--cyan)">${KPI.active==null?'—':KPI.active}</div><div class="s">running now</div></a>
-    <div class="kpi"><div class="l">Trucks out now</div><div class="v">${kfmt(KPI.loaded)}<small>/ ${kfmt(KPI.working)}</small></div><div class="s">loaded / working</div></div>`;
+    <a class="kpi" href="#dispatching" data-go="production"><div class="l">Production today</div><div class="v">${kfmt(KPI.t8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></a>
+    <a class="kpi" href="#dispatching" data-go="production"><div class="l">Yesterday</div><div class="v">${kfmt(KPI.y8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></a>
+    <a class="kpi" href="#dispatching" data-go="summary"><div class="l">Active pours</div><div class="v" style="color:var(--cyan)">${KPI.active==null?'—':KPI.active}</div><div class="s">running now</div></a>
+    <a class="kpi" href="#dispatching" data-go="trucks" data-sub="empty"><div class="l">Trucks out now</div><div class="v">${kfmt(KPI.loaded)}<small>/ ${kfmt(KPI.working)}</small></div><div class="s">loaded / working</div></a>`;
 }
+// A tile opens Concrete Dispatching on the matching page (Production / Summary / Trucks → Empty).
+// The page may still be loading in the background, so keep asking it for up to ~15 s.
+document.getElementById('kpis').addEventListener('click',e=>{
+  const k=e.target.closest('a.kpi[data-go]'); if(!k) return;
+  const go=k.dataset.go, sub=k.dataset.sub||null; let tries=0;
+  (function jump(){
+    try{ const w=document.querySelector('#pane-dispatching iframe').contentWindow;
+      if(typeof w.openView==='function' && typeof w.saveCfg==='function'){ w.openView(go,sub); return; } }catch(err){}
+    if(++tries<50) setTimeout(jump,300);
+  })();
+});
 function csvLine(line){ const o=[]; let c='', q=false; for(const ch of line){ if(ch==='"') q=!q; else if(ch===','&&!q){ o.push(c); c=''; } else c+=ch; } o.push(c); return o; }
 async function loadKpis(){
   try{
