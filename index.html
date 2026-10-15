@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261014-000002">
+<meta name="app-build" content="20261015-000001">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -75,6 +75,11 @@
   .kpi .v{font-family:'JetBrains Mono',Consolas,monospace;font-size:26px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums}
   .kpi .v small{font-size:12px;color:var(--faint);margin-left:3px;font-weight:600}
   .kpi .s{font-size:11px;color:var(--faint);margin-top:3px}
+  /* a loaded truck flagged "Action Needed" in the sheet: the Trucks tile glows red */
+  @keyframes warnGlow{0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0)}50%{box-shadow:0 0 18px 2px rgba(248,113,113,.5)}}
+  .kpi.warn{border-color:rgba(248,113,113,.8);animation:warnGlow 1.6s ease-in-out infinite}
+  .kpi.warn .v .ld{color:#f87171}
+  .kpi.warn .s{color:#f87171;font-weight:700}
   /* the tools, in two groups: online (any device) and programs that run on the office PC */
   .grp{margin-top:24px}
   .grp h2{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:0 0 10px}
@@ -222,10 +227,10 @@ function drawKpis(){
   document.getElementById('kpis').innerHTML=`
     <a class="kpi" href="#dispatching" data-go="production"><div class="l">Production today</div><div class="v">${kfmt(KPI.t8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></a>
     <a class="kpi" href="#dispatching" data-go="production"><div class="l">Yesterday</div><div class="v">${kfmt(KPI.y8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></a>
-    <a class="kpi" href="#dispatching" data-go="summary"><div class="l">Active pours</div><div class="v" style="color:var(--cyan)">${KPI.active==null?'—':KPI.active}</div><div class="s">running now</div></a>
-    <a class="kpi" href="#dispatching" data-go="trucks" data-sub="empty"><div class="l">Trucks out now</div><div class="v">${kfmt(KPI.loaded)}<small>/ ${kfmt(KPI.working)}</small></div><div class="s">loaded / working</div></a>`;
+    <a class="kpi" href="#dispatching" data-go="pours"><div class="l">Active pours</div><div class="v" style="color:var(--cyan)">${KPI.active==null?'—':KPI.active}</div><div class="s">running now</div></a>
+    <a class="kpi${KPI.needed>0?' warn':''}" href="#dispatching" data-go="trucks" data-sub="empty"><div class="l">Trucks out now</div><div class="v"><span class="ld">${kfmt(KPI.loaded)}</span><small>/ ${kfmt(KPI.working)}</small></div><div class="s">${KPI.needed>0?`⚠ ${KPI.needed} action needed`:'loaded / working'}</div></a>`;
 }
-// A tile opens Concrete Dispatching on the matching page (Production / Summary / Trucks → Empty).
+// A tile opens Concrete Dispatching on the matching page (Production / All Pours / Trucks → Empty).
 // The page may still be loading in the background, so keep asking it for up to ~15 s.
 document.getElementById('kpis').addEventListener('click',e=>{
   const k=e.target.closest('a.kpi[data-go]'); if(!k) return;
@@ -249,6 +254,14 @@ async function loadKpis(){
       return undefined; };
     const t8=block(/^\s*today\s*\(\s*8\s*AM/i), y8=block(/^\s*yesterday\s*\(\s*8\s*AM/i);
     if(t8!==undefined) KPI.t8=t8; if(y8!==undefined) KPI.y8=y8;
+    // loaded trucks still out: the list under "Truck Mixer | … | Departure | … | Action", until the first blank truck
+    const hr=rows.findIndex(r=>r.some(x=>/truck\s*mixer/i.test(x))&&r.some(x=>/departure/i.test(x)));
+    if(hr>=0){
+      const cT=rows[hr].findIndex(x=>/truck\s*mixer/i.test(x)), cA=rows[hr].findIndex(x=>/^\s*action\s*$/i.test(x));
+      let n=0;
+      for(let i=hr+1;i<rows.length;i++){ if(!String(rows[i][cT]||'').trim()) break; if(cA>=0&&/action\s*needed/i.test(rows[i][cA]||'')) n++; }
+      KPI.needed=n;
+    }
     for(const row of rows) for(let j=0;j<row.length;j++){
       if(/^\s*loaded trucks\s*$/i.test(row[j]||'')) KPI.loaded=v(row.slice(j+1).find(x=>String(x).trim()));
       if(/^\s*working trucks today\s*$/i.test(row[j]||'')) KPI.working=v(row.slice(j+1).find(x=>String(x).trim()));
