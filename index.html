@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261015-000001">
+<meta name="app-build" content="20261015-000002">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -228,9 +228,9 @@ function drawKpis(){
     <a class="kpi" href="#dispatching" data-go="production"><div class="l">Production today</div><div class="v">${kfmt(KPI.t8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></a>
     <a class="kpi" href="#dispatching" data-go="production"><div class="l">Yesterday</div><div class="v">${kfmt(KPI.y8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></a>
     <a class="kpi" href="#dispatching" data-go="pours"><div class="l">Active pours</div><div class="v" style="color:var(--cyan)">${KPI.active==null?'—':KPI.active}</div><div class="s">running now</div></a>
-    <a class="kpi${KPI.needed>0?' warn':''}" href="#dispatching" data-go="trucks" data-sub="empty"><div class="l">Trucks out now</div><div class="v"><span class="ld">${kfmt(KPI.loaded)}</span><small>/ ${kfmt(KPI.working)}</small></div><div class="s">${KPI.needed>0?`⚠ ${KPI.needed} action needed`:'loaded / working'}</div></a>`;
+    <a class="kpi${KPI.needed>0?' warn':''}" href="#dispatching" data-go="trucks" data-sub="loaded"><div class="l">Trucks out now</div><div class="v"><span class="ld">${kfmt(KPI.loaded)}</span><small>/ ${kfmt(KPI.working)}</small></div><div class="s">${KPI.needed>0?`⚠ ${KPI.needed} action needed`:'loaded / working'}</div></a>`;
 }
-// A tile opens Concrete Dispatching on the matching page (Production / All Pours / Trucks → Empty).
+// A tile opens Concrete Dispatching on the matching page (Production / All Pours / Trucks → Loaded).
 // The page may still be loading in the background, so keep asking it for up to ~15 s.
 document.getElementById('kpis').addEventListener('click',e=>{
   const k=e.target.closest('a.kpi[data-go]'); if(!k) return;
