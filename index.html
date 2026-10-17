@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261015-000002">
+<meta name="app-build" content="20261017-000001">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -167,12 +167,14 @@ function makePane(t){
   let p=document.getElementById('pane-'+t.id);
   if(!p){
     p=document.createElement('div'); p.className='pane'; p.id='pane-'+t.id;
-    p.innerHTML = t.src ? `<iframe src="${t.src}" title="${t.name}" allow="web-share; clipboard-write"></iframe>`
+    p.innerHTML = t.src ? `<iframe src="${freshSrc(t)}" title="${t.name}" allow="web-share; clipboard-write"></iframe>`
       : `<div class="desk">${pic(t,'ic')}<h2>${t.name}</h2><p>${t.desc}</p>
            ${ON_WINDOWS ? `<a class="run" href="${t.launch}">▶ Run program</a>
              <p class="note">Runs on the office PC. If nothing opens, the program is not set up on this computer.</p>`
            : `<p class="note">This is a desktop program — it runs on the office PC only.</p>`}</div>`;
     main.appendChild(p);
+    // note which version of the tool this frame is running (again after any reload, incl. its own self-update)
+    const fr=p.querySelector('iframe'); if(fr) fr.addEventListener('load',()=>remember(t));
   }
   return p;
 }
@@ -188,30 +190,62 @@ const OLD_IDS={'pour-tracker':'dispatching'};   // links saved before the rename
 const route=()=>{ const h=location.hash.slice(1)||'home'; show(OLD_IDS[h]||h); };
 window.addEventListener('hashchange',route);
 
-/* ---------- self-update ----------
-   A window left open (or a stale cached copy) would keep running old code. On open: if the live copy is
-   newer, reload straight away. Later (every 5 min): only reload by itself while on Home, where nothing
-   can be lost; inside a tool show an "Update" button in the menu instead. */
+/* ---------- self-update: Concrete Management AND every tool inside it ----------
+   A window left open (or a stale cached copy) would keep running old code.
+   - Concrete Management itself: on open, if the live copy is newer, reload straight away; later, reload by
+     itself only while on Home, where nothing can be lost.
+   - The tools (Dispatching, Pouring, Ice, Mixes…): each frame remembers the version it loaded; when its repo
+     gets a new version, the same "Update available" button appears in the menu. Clicking it reloads only the
+     tools that changed (or everything, when Concrete Management itself changed).
+   A tool's version = its <meta name="app-build"> when it has one, otherwise a fingerprint of its page. */
 const APP_BUILD=(document.querySelector('meta[name="app-build"]')||{}).content||'';
+const SIG={};                 // tool id -> version its frame is running
+let HUB_NEW=null, STALE=[];   // newer Concrete Management build / tools with a newer version
+const hashStr=s=>{ let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return h; };
+async function liveVersion(url){
+  try{
+    const r=await fetch(url+(url.includes('?')?'&':'?')+'cb='+Date.now(),{cache:'no-store'}); if(!r.ok) return null;
+    const t=await r.text(); const m=t.match(/name="app-build"\s+content="([^"]*)"/i);
+    return m ? m[1] : 'h'+hashStr(t);
+  }catch(e){ return null; }
+}
+function freshSrc(t){ return t.src+(t.src.includes('?')?'&':'?')+'v='+Date.now(); }   // never a stale cached copy
+async function remember(t){ const v=await liveVersion(t.src); if(v) SIG[t.id]=v; }
+function updateNow(){
+  if(HUB_NEW){
+    sessionStorage.setItem('cm_upd',HUB_NEW);
+    location.replace(location.href.split('#')[0].split('?')[0]+'?v='+encodeURIComponent(HUB_NEW)+location.hash); return;
+  }
+  for(const id of STALE){
+    const t=TOOLS.find(x=>x.id===id), fr=document.querySelector('#pane-'+id+' iframe');
+    if(t&&fr){ delete SIG[id]; fr.src=freshSrc(t); }
+  }
+  STALE=[]; const b=document.getElementById('updBtn'); if(b) b.remove();
+}
+function showUpdBtn(){
+  if(document.getElementById('updBtn')) return;
+  const b=document.createElement('a'); b.id='updBtn'; b.className='nav'; b.style.color='var(--cyan)';
+  b.innerHTML='<span class="ic">🔄</span><span class="nm-full">Update available</span><span class="nm-short">Update</span>';
+  b.addEventListener('click',updateNow); side.appendChild(b);
+}
 async function checkForUpdate(atOpen){
   try{
-    const base=location.href.split('#')[0].split('?')[0];
-    const r=await fetch(base+'?cb='+Date.now(),{cache:'no-store'}); if(!r.ok) return;
-    const m=(await r.text()).match(/name="app-build"\s+content="([^"]*)"/i);
-    const live=m&&m[1];
-    if(!live||live===APP_BUILD) return;
-    const go=()=>{ sessionStorage.setItem('cm_upd',live); location.replace(base+'?v='+encodeURIComponent(live)+location.hash); };
-    if(sessionStorage.getItem('cm_upd')===live) return;          // already reloaded for this build — never loop
-    const onHome=!document.querySelector('.pane.show:not(#home)');
-    if(atOpen||onHome){ go(); return; }
-    if(!document.getElementById('updBtn')){
-      const b=document.createElement('a'); b.id='updBtn'; b.className='nav'; b.style.color='var(--cyan)';
-      b.innerHTML='<span class="ic">🔄</span><span class="nm-full">Update available</span><span class="nm-short">Update</span>';
-      b.addEventListener('click',go); side.appendChild(b);
+    const live=await liveVersion(location.href.split('#')[0].split('?')[0]);
+    if(live && APP_BUILD && live!==APP_BUILD && sessionStorage.getItem('cm_upd')!==live){   // never loop on one build
+      HUB_NEW=live;
+      const onHome=!document.querySelector('.pane.show:not(#home)');
+      if(atOpen||onHome){ updateNow(); return; }
     }
+    STALE=[];
+    for(const t of TOOLS){
+      if(!t.src||!SIG[t.id]) continue;          // frame not opened yet: it will load the newest copy anyway
+      const v=await liveVersion(t.src);
+      if(v && v!==SIG[t.id]) STALE.push(t.id);
+    }
+    if(HUB_NEW||STALE.length) showUpdBtn();
   }catch(e){}
 }
-checkForUpdate(true); setInterval(()=>checkForUpdate(false),300000);
+checkForUpdate(true); setInterval(()=>checkForUpdate(false),180000);
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) checkForUpdate(false); });
 route();
 
