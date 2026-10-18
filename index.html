@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261017-000002">
+<meta name="app-build" content="20261018-000001">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -67,7 +67,8 @@
   h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.3px}
   .sub{color:var(--muted);font-size:13px;margin-top:4px}
   /* today's numbers on top of Home */
-  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:22px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px}
+  .kpi.wide{grid-column:span 2}   /* 2nd row: Trucks and Pumps, half the row each */
   .kpi{display:block;text-decoration:none;color:inherit;background:linear-gradient(180deg,var(--panel),var(--panel2));
     border:1px solid var(--line);border-radius:16px;padding:14px 16px}
   a.kpi:hover{border-color:rgba(124,131,255,.55)}
@@ -104,7 +105,7 @@
     .nav .soon-tag{display:none}
     .wrap{padding:24px 16px 40px}
     .kpis{grid-template-columns:repeat(2,1fr);gap:8px}
-    .kpis .kpi:last-child{grid-column:1/-1}   /* 5 tiles: the last one (Pumps) takes the whole row */
+    .kpi.wide{grid-column:auto}   /* phone: 2 per row — Today|Yesterday, Active|Upcoming, Trucks|Pumps */
     .kpi{padding:11px 12px} .kpi .v{font-size:21px}
     .apps{grid-template-columns:repeat(3,1fr);gap:8px}
     .app{padding:12px 4px} .app img.ic{width:52px;height:52px;border-radius:13px}
@@ -263,10 +264,11 @@ function drawKpis(){
     <a class="kpi" href="#dispatching" data-go="production"><div class="l">Production today</div><div class="v">${kfmt(KPI.t8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></a>
     <a class="kpi" href="#dispatching" data-go="production"><div class="l">Yesterday</div><div class="v">${kfmt(KPI.y8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></a>
     <a class="kpi" href="#dispatching" data-go="pours"><div class="l">Active pours</div><div class="v" style="color:var(--cyan)">${KPI.active==null?'—':KPI.active}</div><div class="s">running now</div></a>
-    <a class="kpi${KPI.needed>0?' warn':''}" href="#dispatching" data-go="trucks" data-sub="loaded"><div class="l">Trucks out now</div><div class="v"><span class="ld">${kfmt(KPI.loaded)}</span><small>/ ${kfmt(KPI.working)}</small></div><div class="s">${KPI.needed>0?`⚠ ${KPI.needed} action needed`:'loaded / working'}</div></a>
-    <a class="kpi" href="#dispatching" data-go="pumps"><div class="l">Pumps available</div><div class="v">${KPI.pumps?KPI.pumps.free:'—'}<small>/ ${KPI.pumps?KPI.pumps.total:10}</small></div><div class="s">${KPI.pumps?[KPI.pumps.on&&KPI.pumps.on+' on pour',KPI.pumps.wash&&KPI.pumps.wash+' washing',KPI.pumps.down&&KPI.pumps.down+' down'].filter(Boolean).join(' · ')||'all free':'free now'}</div></a>`;
+    <a class="kpi" href="#dispatching" data-go="upcoming"><div class="l">Upcoming requests</div><div class="v" style="color:var(--accent)">${KPI.up==null?'—':KPI.up}</div><div class="s">not started yet</div></a>
+    <a class="kpi wide${KPI.needed>0?' warn':''}" href="#dispatching" data-go="trucks" data-sub="loaded"><div class="l">Trucks out now</div><div class="v"><span class="ld">${kfmt(KPI.loaded)}</span><small>/ ${kfmt(KPI.working)}</small></div><div class="s">${KPI.needed>0?`⚠ ${KPI.needed} action needed`:'loaded / working'}</div></a>
+    <a class="kpi wide" href="#dispatching" data-go="pumps"><div class="l">Pumps available</div><div class="v">${KPI.pumps?KPI.pumps.free:'—'}<small>/ ${KPI.pumps?KPI.pumps.total:10}</small></div><div class="s">${KPI.pumps?[KPI.pumps.on&&KPI.pumps.on+' on pour',KPI.pumps.wash&&KPI.pumps.wash+' washing',KPI.pumps.down&&KPI.pumps.down+' down'].filter(Boolean).join(' · ')||'all free':'free now'}</div></a>`;
 }
-// A tile opens Concrete Dispatching on the matching page (Production / All Pours / Trucks → Loaded).
+// A tile opens Concrete Dispatching on the matching page (Production / All Pours / Upcoming / Trucks → Loaded / Pumps).
 // The page may still be loading in the background, so keep asking it for up to ~15 s.
 document.getElementById('kpis').addEventListener('click',e=>{
   const k=e.target.closest('a.kpi[data-go]'); if(!k) return;
@@ -310,6 +312,8 @@ function readActive(){
     const fr=document.querySelector('#pane-dispatching iframe');
     const n=fr&&fr.contentWindow.eval('(typeof LAST!=="undefined"&&LAST.matrix&&LAST.matrix.length)?VD.open.length:null');
     if(typeof n==='number' && n!==KPI.active){ KPI.active=n; drawKpis(); }
+    const u=fr&&fr.contentWindow.eval('(typeof LAST!=="undefined"&&LAST.matrix&&LAST.matrix.length)?VD.upcoming.length:null');
+    if(typeof u==='number' && u!==KPI.up){ KPI.up=u; drawKpis(); }
     // pumps: Dispatching's own pump plan (which pump is on a pour / washing / broken down / free)
     const p=fr&&fr.contentWindow.eval('(typeof LAST!=="undefined"&&LAST.matrix&&LAST.matrix.length&&typeof pumpPlan==="function")?JSON.stringify(pumpPlan(Date.now()).state.reduce((a,x)=>(a[x.st]=(a[x.st]||0)+1,a.total++,a),{total:0})):null');
     if(typeof p==='string'){ const o=JSON.parse(p), v={free:o.free||0,on:o.on||0,wash:o.wash||0,down:o.down||0,total:o.total}; if(JSON.stringify(v)!==JSON.stringify(KPI.pumps)){ KPI.pumps=v; drawKpis(); } }
