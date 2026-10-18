@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261018-000001">
+<meta name="app-build" content="20261018-000002">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -65,6 +65,18 @@
       radial-gradient(46% 42% at 90% 4%,rgba(34,211,238,.16),transparent 60%)}
   .wrap{max-width:980px;margin:0 auto;padding:36px 20px 60px}
   h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.3px}
+  /* is Home up to date? — the pill at the top right */
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .live{display:inline-flex;align-items:center;gap:8px;flex:none;padding:7px 13px;border-radius:999px;cursor:pointer;
+    border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);font:700 12px var(--sans);white-space:nowrap}
+  .live .dot{width:9px;height:9px;border-radius:50%;background:#fbbf24}
+  .live.load .dot{animation:liveBlink 1s ease-in-out infinite}
+  .live.ok{color:#34d399;border-color:rgba(52,211,153,.4)}
+  .live.ok .dot{background:#34d399;animation:livePulse 2s infinite}
+  .live.err{color:#f87171;border-color:rgba(248,113,113,.45)}
+  .live.err .dot{background:#f87171}
+  @keyframes liveBlink{50%{opacity:.3}}
+  @keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.6)}70%{box-shadow:0 0 0 7px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
   .sub{color:var(--muted);font-size:13px;margin-top:4px}
   /* today's numbers on top of Home */
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px}
@@ -104,6 +116,7 @@
     .nav .nm-short{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
     .nav .soon-tag{display:none}
     .wrap{padding:24px 16px 40px}
+    .top{flex-direction:column;gap:10px} .live{align-self:flex-start}
     .kpis{grid-template-columns:repeat(2,1fr);gap:8px}
     .kpi.wide{grid-column:auto}   /* phone: 2 per row — Today|Yesterday, Active|Upcoming, Trucks|Pumps */
     .kpi{padding:11px 12px} .kpi .v{font-size:21px}
@@ -122,8 +135,10 @@
 <div class="main" id="main">
   <div class="pane" id="home">
     <div class="wrap">
-      <h1>CONCRETE MANAGEMENT</h1>
-      <div class="sub">All concrete tools in one place</div>
+      <div class="top">
+        <div><h1>CONCRETE MANAGEMENT</h1><div class="sub">All concrete tools in one place</div></div>
+        <button type="button" class="live load" id="live"><span class="dot"></span><span class="txt">Loading…</span></button>
+      </div>
       <div class="kpis" id="kpis"></div>
       <div id="apps"></div>
     </div>
@@ -282,8 +297,9 @@ document.getElementById('kpis').addEventListener('click',e=>{
 function csvLine(line){ const o=[]; let c='', q=false; for(const ch of line){ if(ch==='"') q=!q; else if(ch===','&&!q){ o.push(c); c=''; } else c+=ch; } o.push(c); return o; }
 async function loadKpis(){
   try{
-    const r=await fetch(TRUCKS_CSV+'&_='+Date.now(),{cache:'no-store'}); if(!r.ok) return;
+    const r=await fetch(TRUCKS_CSV+'&_='+Date.now(),{cache:'no-store'}); if(!r.ok){ SHEET_ERR=true; drawLive(); return; }
     const rows=(await r.text()).split(/\r?\n/).map(csvLine);
+    SHEET_OK=Date.now(); SHEET_ERR=false;
     const v=s=>{ const x=String(s==null?'':s).replace(/[^0-9.]/g,''); return x===''?null:parseFloat(x); };
     const block=re=>{                                     // the TOTAL under a "Today/Yesterday ( 8 AM : 8 AM )" title
       for(let i=0;i<rows.length;i++) for(let j=0;j<rows[i].length;j++) if(re.test(rows[i][j]||'')){
@@ -304,13 +320,14 @@ async function loadKpis(){
       if(/^\s*loaded trucks\s*$/i.test(row[j]||'')) KPI.loaded=v(row.slice(j+1).find(x=>String(x).trim()));
       if(/^\s*working trucks today\s*$/i.test(row[j]||'')) KPI.working=v(row.slice(j+1).find(x=>String(x).trim()));
     }
-  }catch(e){}
-  drawKpis();
+  }catch(e){ SHEET_ERR=true; }
+  drawKpis(); drawLive();
 }
 function readActive(){
   try{
     const fr=document.querySelector('#pane-dispatching iframe');
     const n=fr&&fr.contentWindow.eval('(typeof LAST!=="undefined"&&LAST.matrix&&LAST.matrix.length)?VD.open.length:null');
+    if(typeof n==='number') DISP_OK=Date.now();          // Dispatching has its data and is answering
     if(typeof n==='number' && n!==KPI.active){ KPI.active=n; drawKpis(); }
     const u=fr&&fr.contentWindow.eval('(typeof LAST!=="undefined"&&LAST.matrix&&LAST.matrix.length)?VD.upcoming.length:null');
     if(typeof u==='number' && u!==KPI.up){ KPI.up=u; drawKpis(); }
@@ -319,7 +336,34 @@ function readActive(){
     if(typeof p==='string'){ const o=JSON.parse(p), v={free:o.free||0,on:o.on||0,wash:o.wash||0,down:o.down||0,total:o.total}; if(JSON.stringify(v)!==JSON.stringify(KPI.pumps)){ KPI.pumps=v; drawKpis(); } }
   }catch(e){}                                             // not loaded yet, or opened from another address
 }
-drawKpis(); loadKpis(); setInterval(loadKpis,60000);
+/* ---------- Live / Loading / Not updating pill (top right of Home) ----------
+   Loading…         the sheet hasn't answered yet, or Dispatching (pours, upcoming, pumps) is still loading
+   Live · 20s ago   the sheet answered within the last 3 min and Dispatching is answering
+   Not updating     the sheet failed or nothing new for 3 min (the tiles show the last good numbers)
+   Offline          this device has no internet
+   Click it to refresh the numbers now. */
+let SHEET_OK=0, SHEET_ERR=false, DISP_OK=0;
+const hhmm=t=>new Date(t).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+function drawLive(){
+  const el=document.getElementById('live'); if(!el) return;
+  const now=Date.now(), stale=t=>now-t>180000;
+  const ago=t=>{ const s=Math.max(0,Math.round((now-t)/1000)); return s<60?s+'s ago':Math.round(s/60)+' min ago'; };
+  let cls, txt;
+  if(!navigator.onLine){ cls='err'; txt='Offline'; }
+  else if(!SHEET_OK && !SHEET_ERR){ cls='load'; txt='Loading…'; }
+  else if(!SHEET_OK){ cls='err'; txt='Can’t reach the sheet'; }
+  else if(stale(SHEET_OK)){ cls='err'; txt='Not updating · last '+hhmm(SHEET_OK); }
+  else if(!DISP_OK){ cls='load'; txt='Loading pours…'; }
+  else if(now-DISP_OK>60000){ cls='err'; txt='Pours not updating'; }
+  else { cls='ok'; txt='Live · '+ago(SHEET_OK); }
+  el.className='live '+cls; el.querySelector('.txt').textContent=txt;
+  el.title=SHEET_OK?('Numbers from the sheet at '+hhmm(SHEET_OK)+' — click to refresh now'):'Click to refresh now';
+}
+document.getElementById('live').addEventListener('click',()=>{ SHEET_ERR=false; drawLive(); loadKpis(); readActive(); });
+window.addEventListener('online',()=>{ drawLive(); loadKpis(); }); window.addEventListener('offline',drawLive);
+setInterval(drawLive,1000);
+
+drawKpis(); drawLive(); loadKpis(); setInterval(loadKpis,60000);
 makePane(TOOLS.find(t=>t.id==='dispatching'));           // start Concrete Dispatching in the background
 setInterval(readActive,3000);
 </script>
