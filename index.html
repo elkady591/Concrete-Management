@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261019-000001">
+<meta name="app-build" content="20261020-000001">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -104,6 +104,13 @@
   .app .nm{font-weight:700;font-size:13px;margin-top:10px}
   .app .ds{color:var(--faint);font-size:11px;margin-top:3px;line-height:1.4}
 
+  /* ---- access: until Concrete Dispatching says this device is let in, only its page shows (name / waiting / blocked) ---- */
+  body.locked .side{display:none}
+  body.locked .pane{display:none!important}
+  body.locked #pane-dispatching{display:block!important}
+  #gateLoad{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:var(--bg);color:var(--muted);font:600 14px var(--sans)}
+  #gateLoad[hidden]{display:none}
+
   /* ---- phone: the side nav becomes a bottom bar ---- */
   @media (max-width:760px){
     body{flex-direction:column-reverse}
@@ -126,7 +133,8 @@
   }
 </style>
 </head>
-<body>
+<body class="locked">
+<div id="gateLoad">Loading…</div>
 
 <nav class="side" id="side">
   <div class="brand"><img src="icons/icon-192.png" alt="" width="38" height="38" style="display:block;margin-bottom:10px">CONCRETE MANAGEMENT<small>All concrete tools in one place</small></div>
@@ -367,6 +375,24 @@ setInterval(drawLive,1000);
 drawKpis(); drawLive(); loadKpis(); setInterval(loadKpis,60000);
 makePane(TOOLS.find(t=>t.id==='dispatching'));           // start Concrete Dispatching in the background
 setInterval(readActive,3000);
+
+/* ---------- access approval (same as Concrete Dispatching, same device) ----------
+   Dispatching decides: 'checking' / 'name' (typing the name) / 'wait' (waiting for the admin) / 'blocked' / 'in'.
+   Until it says 'in', the menu, Home and the other tools stay hidden and only Dispatching's own screen shows.
+   If Dispatching can't be read at all for 30 s (opened from another address), the hub opens normally. */
+const GATE_T0=Date.now(); let GATE='checking';
+function gate(){
+  let st=null;
+  try{ const fr=document.querySelector('#pane-dispatching iframe');
+    st=fr&&fr.contentWindow.eval('typeof accessState==="function"?accessState():null'); }catch(e){}
+  if(st==null && Date.now()-GATE_T0>30000) st='in';
+  if(st==null) st='checking';
+  if(st===GATE) return; GATE=st;
+  document.getElementById('gateLoad').hidden = st!=='checking';
+  document.body.classList.toggle('locked', st!=='in');
+  if(st==='in') route();
+}
+gate(); setInterval(gate,1000);
 </script>
 </body>
 </html>
