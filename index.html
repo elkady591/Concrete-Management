@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261020-000001">
+<meta name="app-build" content="20261021-000002">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -104,13 +104,6 @@
   .app .nm{font-weight:700;font-size:13px;margin-top:10px}
   .app .ds{color:var(--faint);font-size:11px;margin-top:3px;line-height:1.4}
 
-  /* ---- access: until Concrete Dispatching says this device is let in, only its page shows (name / waiting / blocked) ---- */
-  body.locked .side{display:none}
-  body.locked .pane{display:none!important}
-  body.locked #pane-dispatching{display:block!important}
-  #gateLoad{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:var(--bg);color:var(--muted);font:600 14px var(--sans)}
-  #gateLoad[hidden]{display:none}
-
   /* ---- phone: the side nav becomes a bottom bar ---- */
   @media (max-width:760px){
     body{flex-direction:column-reverse}
@@ -131,10 +124,54 @@
     .app{padding:12px 4px} .app img.ic{width:52px;height:52px;border-radius:13px}
     .app .ds{display:none} .app .nm{font-size:11.5px}
   }
+
+  /* ---------- themes (🎨 next to the status pill; chosen per device) ----------
+     no class = the original dark look · theme-a refined dark · theme-b light NCM · theme-c industrial */
+  .top-r{display:flex;align-items:center;gap:8px;position:relative}
+  .thm-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.04);cursor:pointer;font-size:16px;line-height:1}
+  .thm-menu{position:absolute;top:42px;right:0;z-index:20;min-width:210px;padding:6px;border-radius:14px;border:1px solid var(--line);
+    background:var(--panel);box-shadow:0 14px 40px rgba(0,0,0,.35)}
+  .thm-menu[hidden]{display:none}
+  .thm-opt{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;border-radius:10px;background:none;color:var(--ink);font:600 13px var(--sans);cursor:pointer;text-align:left}
+  .thm-opt:hover{background:rgba(127,127,127,.12)} .thm-opt.on{background:rgba(124,131,255,.18)}
+  .thm-sw{display:flex;gap:3px} .thm-sw i{width:12px;height:12px;border-radius:50%;display:block;border:1px solid rgba(127,127,127,.35)}
+  body.theme-a .kpi .l::before,body.theme-b .kpi .l::before,body.theme-c .kpi .l::before{margin-right:6px}
+  body.theme-a .kpi[data-go="production"] .l::before,body.theme-b .kpi[data-go="production"] .l::before,body.theme-c .kpi[data-go="production"] .l::before{content:"🏭"}
+  body.theme-a .kpi[data-go="pours"] .l::before,body.theme-b .kpi[data-go="pours"] .l::before,body.theme-c .kpi[data-go="pours"] .l::before{content:"🏗️"}
+  body.theme-a .kpi[data-go="upcoming"] .l::before,body.theme-b .kpi[data-go="upcoming"] .l::before,body.theme-c .kpi[data-go="upcoming"] .l::before{content:"⏳"}
+  body.theme-a .kpi[data-go="trucks"] .l::before,body.theme-b .kpi[data-go="trucks"] .l::before,body.theme-c .kpi[data-go="trucks"] .l::before{content:"🚛"}
+  body.theme-a .kpi[data-go="pumps"] .l::before,body.theme-b .kpi[data-go="pumps"] .l::before,body.theme-c .kpi[data-go="pumps"] .l::before{content:"🏗"}
+  body.theme-a .kpi,body.theme-b .kpi,body.theme-c .kpi{transition:transform .15s ease,box-shadow .15s ease}
+  body.theme-a a.kpi:hover,body.theme-b a.kpi:hover,body.theme-c a.kpi:hover{transform:translateY(-3px)}
+  /* A · refined dark: coloured top line per tile + glowing numbers */
+  body.theme-a .kpi{position:relative;overflow:hidden;border-radius:18px}
+  body.theme-a .kpi::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,#7c83ff,#22d3ee)}
+  body.theme-a .kpi[data-go="production"]::after{background:linear-gradient(90deg,#34d399,#22d3ee)}
+  body.theme-a .kpi[data-go="trucks"]::after{background:linear-gradient(90deg,#fbbf24,#f97316)}
+  body.theme-a .kpi[data-go="pumps"]::after{background:linear-gradient(90deg,#a78bfa,#7c83ff)}
+  body.theme-a .kpi .v{background:linear-gradient(90deg,#fff,#b9c2ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  body.theme-a .kpi .v small{-webkit-text-fill-color:var(--faint)}
+  body.theme-a .app{border-radius:20px} body.theme-a .app img.ic{box-shadow:0 10px 24px rgba(0,0,0,.45)}
+  /* B · light NCM: white cards, navy menu, NCM blue / green */
+  body.theme-b{--bg:#eef2f7;--panel:#ffffff;--panel2:#ffffff;--side:#0f2747;--ink:#14213d;--muted:#5b6782;--faint:#8a94a8;--line:rgba(20,33,61,.10);--accent:#006AAA;--cyan:#1f9d55}
+  body.theme-b #home::before{display:none}
+  body.theme-b .side{border-right:0} body.theme-b .brand{color:#fff} body.theme-b .brand small{color:#8fa0bc}
+  body.theme-b .nav{color:#b8c4d8} body.theme-b .nav:hover,body.theme-b .nav.active{color:#fff;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25)}
+  body.theme-b h1{color:#0f2747}
+  body.theme-b .kpi,body.theme-b .app{background:#fff;border:1px solid rgba(20,33,61,.08);box-shadow:0 6px 18px rgba(15,39,71,.08)}
+  body.theme-b .kpi .v{color:#006AAA} body.theme-b .kpi .v small{color:#8a94a8} body.theme-b .kpi[data-go="production"] .v{color:#1f9d55}
+  body.theme-b .live,body.theme-b .thm-btn{background:#fff;border-color:rgba(20,33,61,.12)}
+  body.theme-b .pane iframe{background:#fff}
+  /* C · industrial: charcoal + construction amber */
+  body.theme-c{--bg:#141518;--panel:#1f2125;--panel2:#1a1b1f;--side:#0e0f11;--ink:#f2f2f2;--muted:#a1a5ad;--faint:#70757e;--line:rgba(255,255,255,.08);--accent:#f59e0b;--cyan:#f59e0b}
+  body.theme-c #home::before{background:radial-gradient(60% 40% at 15% 0%,rgba(245,158,11,.14),transparent 60%)}
+  body.theme-c h1{letter-spacing:.5px} body.theme-c h1::after{content:"";display:block;width:64px;height:4px;border-radius:2px;background:#f59e0b;margin-top:8px}
+  body.theme-c .kpi{border-left:4px solid #f59e0b;border-radius:10px} body.theme-c .kpi .v{color:#fbbf24}
+  body.theme-c .nav.active{background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.45)}
+  body.theme-c .app{border-radius:12px} body.theme-c a.app:hover{border-color:rgba(245,158,11,.6)}
 </style>
 </head>
-<body class="locked">
-<div id="gateLoad">Loading…</div>
+<body>
 
 <nav class="side" id="side">
   <div class="brand"><img src="icons/icon-192.png" alt="" width="38" height="38" style="display:block;margin-bottom:10px">CONCRETE MANAGEMENT<small>All concrete tools in one place</small></div>
@@ -145,7 +182,11 @@
     <div class="wrap">
       <div class="top">
         <div><h1>CONCRETE MANAGEMENT</h1><div class="sub">All concrete tools in one place</div></div>
-        <button type="button" class="live load" id="live"><span class="dot"></span><span class="txt">Loading…</span></button>
+        <div class="top-r">
+          <button type="button" class="thm-btn" id="thmBtn" title="Theme">🎨</button>
+          <button type="button" class="live load" id="live"><span class="dot"></span><span class="txt">Loading…</span></button>
+          <div class="thm-menu" id="thmMenu" hidden></div>
+        </div>
       </div>
       <div class="kpis" id="kpis"></div>
       <div id="apps"></div>
@@ -369,30 +410,34 @@ function drawLive(){
   el.title=SHEET_OK?('Numbers from the sheet at '+hhmm(SHEET_OK)+' — click to refresh now'):'Click to refresh now';
 }
 document.getElementById('live').addEventListener('click',()=>{ SHEET_ERR=false; drawLive(); loadKpis(); readActive(); });
+
+/* ---------- theme picker (🎨): kept on this device only ---------- */
+const THEMES=[
+  {id:'',  name:'Original',      sw:['#0d1120','#7c83ff','#22d3ee']},
+  {id:'a', name:'Refined dark',  sw:['#0d1120','#34d399','#f97316']},
+  {id:'b', name:'Light NCM',     sw:['#eef2f7','#006AAA','#1f9d55']},
+  {id:'c', name:'Industrial',    sw:['#141518','#f59e0b','#fbbf24']}
+];
+function setTheme(id){
+  THEMES.forEach(t=>{ if(t.id) document.body.classList.toggle('theme-'+t.id, t.id===id); });
+  try{ localStorage.setItem('cm:theme',id); }catch(e){}
+  drawThemeMenu();
+}
+function drawThemeMenu(){
+  const cur=THEMES.find(t=>t.id&&document.body.classList.contains('theme-'+t.id)), on=cur?cur.id:'';
+  document.getElementById('thmMenu').innerHTML=THEMES.map(t=>`<button type="button" class="thm-opt${t.id===on?' on':''}" data-t="${t.id}">
+    <span class="thm-sw">${t.sw.map(c=>`<i style="background:${c}"></i>`).join('')}</span>${t.name}${t.id===on?' ✓':''}</button>`).join('');
+}
+document.getElementById('thmBtn').addEventListener('click',e=>{ e.stopPropagation(); const m=document.getElementById('thmMenu'); m.hidden=!m.hidden; });
+document.getElementById('thmMenu').addEventListener('click',e=>{ const b=e.target.closest('.thm-opt'); if(!b) return; setTheme(b.dataset.t); document.getElementById('thmMenu').hidden=true; });
+document.addEventListener('click',e=>{ if(!e.target.closest('.top-r')) document.getElementById('thmMenu').hidden=true; });
+{ let saved=''; try{ saved=localStorage.getItem('cm:theme')||''; }catch(e){} setTheme(THEMES.some(t=>t.id===saved)?saved:''); }
 window.addEventListener('online',()=>{ drawLive(); loadKpis(); }); window.addEventListener('offline',drawLive);
 setInterval(drawLive,1000);
 
 drawKpis(); drawLive(); loadKpis(); setInterval(loadKpis,60000);
 makePane(TOOLS.find(t=>t.id==='dispatching'));           // start Concrete Dispatching in the background
 setInterval(readActive,3000);
-
-/* ---------- access approval (same as Concrete Dispatching, same device) ----------
-   Dispatching decides: 'checking' / 'name' (typing the name) / 'wait' (waiting for the admin) / 'blocked' / 'in'.
-   Until it says 'in', the menu, Home and the other tools stay hidden and only Dispatching's own screen shows.
-   If Dispatching can't be read at all for 30 s (opened from another address), the hub opens normally. */
-const GATE_T0=Date.now(); let GATE='checking';
-function gate(){
-  let st=null;
-  try{ const fr=document.querySelector('#pane-dispatching iframe');
-    st=fr&&fr.contentWindow.eval('typeof accessState==="function"?accessState():null'); }catch(e){}
-  if(st==null && Date.now()-GATE_T0>30000) st='in';
-  if(st==null) st='checking';
-  if(st===GATE) return; GATE=st;
-  document.getElementById('gateLoad').hidden = st!=='checking';
-  document.body.classList.toggle('locked', st!=='in');
-  if(st==='in') route();
-}
-gate(); setInterval(gate,1000);
 </script>
 </body>
 </html>
