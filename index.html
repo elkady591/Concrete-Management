@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261021-000002">
+<meta name="app-build" content="20261026-000001">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -361,14 +361,15 @@ async function loadKpis(){
     const hr=rows.findIndex(r=>r.some(x=>/truck\s*mixer/i.test(x))&&r.some(x=>/departure/i.test(x)));
     if(hr>=0){
       const cT=rows[hr].findIndex(x=>/truck\s*mixer/i.test(x)), cA=rows[hr].findIndex(x=>/^\s*action\s*$/i.test(x));
-      let n=0;
-      for(let i=hr+1;i<rows.length;i++){ if(!String(rows[i][cT]||'').trim()) break; if(cA>=0&&/action\s*needed/i.test(rows[i][cA]||'')) n++; }
-      KPI.needed=n;
+      let n=0; const out=new Set();
+      for(let i=hr+1;i<rows.length;i++){ const tk=String(rows[i][cT]||'').trim(); if(!tk) break; out.add(tk); if(cA>=0&&/action\s*needed/i.test(rows[i][cA]||'')) n++; }
+      KPI.needed=n; KPI.loadedU=out.size;   // TRUCKS out, each once (one truck can carry two small requests = two rows)
     }
     for(const row of rows) for(let j=0;j<row.length;j++){
-      if(/^\s*loaded trucks\s*$/i.test(row[j]||'')) KPI.loaded=v(row.slice(j+1).find(x=>String(x).trim()));
+      if(/^\s*loaded trucks\s*$/i.test(row[j]||'')) KPI.loaded=hr>=0?KPI.loadedU:v(row.slice(j+1).find(x=>String(x).trim()));
       if(/^\s*working trucks today\s*$/i.test(row[j]||'')) KPI.working=v(row.slice(j+1).find(x=>String(x).trim()));
     }
+    if(hr>=0) KPI.loaded=KPI.loadedU;
   }catch(e){ SHEET_ERR=true; }
   drawKpis(); drawLive();
 }
