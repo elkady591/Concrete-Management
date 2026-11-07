@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Concrete Management</title>
 <!-- Bumped on every change; the page compares it with the live copy and updates itself (see checkForUpdate) -->
-<meta name="app-build" content="20261103-000001">
+<meta name="app-build" content="20261107-000001">
 <meta name="theme-color" content="#0d1120">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
@@ -88,6 +88,7 @@
   .kpi .v{font-family:'JetBrains Mono',Consolas,monospace;font-size:26px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums}
   .kpi .v small{font-size:12px;color:var(--faint);margin-left:3px;font-weight:600}
   .kpi .s{font-size:11px;color:var(--faint);margin-top:3px}
+  .kpi .s .pl{color:var(--muted);font-weight:700}
   /* a loaded truck flagged "Action Needed" in the sheet: the Trucks tile glows red */
   @keyframes warnGlow{0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0)}50%{box-shadow:0 0 18px 2px rgba(248,113,113,.5)}}
   .kpi.warn{border-color:rgba(248,113,113,.8);animation:warnGlow 1.6s ease-in-out infinite}
@@ -324,10 +325,12 @@ route();
 const TRUCKS_CSV='https://docs.google.com/spreadsheets/d/1oZfnrFmYL46zKtTH8htHyLjLYf5udq5hL-TcVdGwrIE/export?format=csv&gid=1257690697';
 const KPI={};
 const kfmt=n=>n==null?'—':Math.round(n).toLocaleString('en-US');
+// plants that worked in that 8 AM : 8 AM day (rows above TOTAL in the sheet's block with a quantity)
+const plantsTxt=n=>n==null?'':`<b class="pl">🏭 ${n} plant${n===1?'':'s'}</b> · `;
 function drawKpis(){
   document.getElementById('kpis').innerHTML=`
-    <a class="kpi" href="#dispatching" data-go="production"><div class="l">Production today</div><div class="v">${kfmt(KPI.t8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></a>
-    <a class="kpi" href="#dispatching" data-go="production"><div class="l">Yesterday</div><div class="v">${kfmt(KPI.y8)}<small>m³</small></div><div class="s">8 AM : 8 AM</div></a>
+    <a class="kpi" href="#dispatching" data-go="production"><div class="l">Production today</div><div class="v">${kfmt(KPI.t8)}<small>m³</small></div><div class="s">${plantsTxt(KPI.tP)}8 AM : 8 AM</div></a>
+    <a class="kpi" href="#dispatching" data-go="production"><div class="l">Yesterday</div><div class="v">${kfmt(KPI.y8)}<small>m³</small></div><div class="s">${plantsTxt(KPI.yP)}8 AM : 8 AM</div></a>
     <a class="kpi" href="#dispatching" data-go="pours"><div class="l">Active pours</div><div class="v" style="color:var(--cyan)">${KPI.active==null?'—':KPI.active}</div><div class="s">running now</div></a>
     <a class="kpi" href="#dispatching" data-go="upcoming"><div class="l">Upcoming requests</div><div class="v" style="color:var(--accent)">${KPI.up==null?'—':KPI.up}</div><div class="s">not started yet</div></a>
     <a class="kpi wide${KPI.needed>0?' warn':''}" href="#dispatching" data-go="trucks" data-sub="empty"><div class="l">Trucks available</div><div class="v"><span class="ld">${KPI.working!=null&&KPI.loaded!=null?kfmt(Math.max(0,KPI.working-KPI.loaded)):'—'}</span><small>/ ${kfmt(KPI.working)}</small></div><div class="s">${KPI.loaded==null?'empty at the plant':(KPI.needed>0?`⚠ ${KPI.needed} action needed · `:'')+kfmt(KPI.loaded)+' loaded out'}</div></a>
@@ -353,11 +356,17 @@ async function loadKpis(){
     const v=s=>{ const x=String(s==null?'':s).replace(/[^0-9.]/g,''); return x===''?null:parseFloat(x); };
     const block=re=>{                                     // the TOTAL under a "Today/Yesterday ( 8 AM : 8 AM )" title
       for(let i=0;i<rows.length;i++) for(let j=0;j<rows[i].length;j++) if(re.test(rows[i][j]||'')){
-        for(let k=i+1;k<Math.min(rows.length,i+12);k++) if(/^\s*total\s*$/i.test(rows[k][j]||'')) return v(rows[k][j+1]);
+        // the rows between the title and TOTAL are the plants; a plant with a quantity above 0 worked in that 8 AM : 8 AM day
+        let plants=0;
+        for(let k=i+1;k<Math.min(rows.length,i+12);k++){
+          if(/^\s*total\s*$/i.test(rows[k][j]||'')) return {qty:v(rows[k][j+1]), plants};
+          if(String(rows[k][j]||'').trim() && v(rows[k][j+1])>0) plants++;
+        }
         return null; }
       return undefined; };
     const t8=block(/^\s*today\s*\(\s*8\s*AM/i), y8=block(/^\s*yesterday\s*\(\s*8\s*AM/i);
-    if(t8!==undefined) KPI.t8=t8; if(y8!==undefined) KPI.y8=y8;
+    if(t8!==undefined){ KPI.t8=t8&&t8.qty; KPI.tP=t8&&t8.plants; }
+    if(y8!==undefined){ KPI.y8=y8&&y8.qty; KPI.yP=y8&&y8.plants; }
     // loaded trucks still out: the list under "Truck Mixer | … | Departure | … | Action", until the first blank truck
     const hr=rows.findIndex(r=>r.some(x=>/truck\s*mixer/i.test(x))&&r.some(x=>/departure/i.test(x)));
     if(hr>=0){
